@@ -133,7 +133,7 @@ GET /api/warehouses
 }
 ```
 
-> `roads` + 各库 `entrance` 即**行车路线规划的输入**（见下方「路线如何生成」）。\n> 道路段可带通行规则属性：`oneway`(0双向/1正向+/-1反向)、`maxHeight`(限高m)、`maxWeight`(限重t)、`speed`(限速km/h)、`congestion`(拥堵系数)、`closed`(封闭)。\n> `weighbridge`(磅房) 为进出门必经点；提单接口的 `data.vehicle`(车高/车货总重/车型) 用于按限高/限重过滤道路。\n> `layout` 描述**灵活库内布局**：每个分区一项，`rows` 数组的长度=该区排数，元素=**该排的库位数**——因此不同库房排数不同、同库不同排的库位数也可不同。未提供 `layout` 时回退到统一网格 `grid`。
+> `roads` + 各库 `entrance` 即**行车路线规划的输入**（见下方「路线如何生成」）。\n> 道路段可带通行规则属性：`oneway`(0双向/1正向+/-1反向)、`maxHeight`(限高m)、`maxWeight`(限重t)、`speed`(限速km/h)、`congestion`(拥堵系数)、`closed`(封闭)。\n> 第二批：`maxWidth`(限宽m)、`minTurnRadius`(可提供的最小转弯半径m，车辆 turnRadius 更大则禁行)、`noEntry`(禁行时段，如 "08:00-09:00,13:00-14:00")。库房可选 `exit`{x,z}（装卸单向动线：入口进、出口出）。\n> `weighbridge`(磅房) 为进出门必经点；`data.vehicle` 含 height/weight/width/length/turnRadius/maxPayload，用于限高/限重/限宽/转弯过滤与整车载重(配载)判断。\n> `layout` 描述**灵活库内布局**：每个分区一项，`rows` 数组的长度=该区排数，元素=**该排的库位数**——因此不同库房排数不同、同库不同排的库位数也可不同。未提供 `layout` 时回退到统一网格 `grid`。
 
 ## 3. 库位坐标映射（InvMap 内部维护，可选由 ERP 提供）
 
@@ -171,3 +171,18 @@ POST /api/pickup/print-log
 - InvMap 默认轮询查询；若 ERP 支持，可改为 Webhook 推送库位变更（移库）以实时刷新。
 - 字段映射在 InvMap 后台可配置，适配不同 ERP 命名。
 - 本仓库 `prototype/js/mockErp.js` 即按上述结构实现的**模拟实现**，联调时替换为真实 `fetch` 即可；厂区/道路/库房配置见 `prototype/js/warehouseConfig.js`。
+
+
+## 鉴权（API-Key / Token）
+
+后端可开启接口鉴权（`invmap.auth.enabled=true`）。开启后，除 `/api/health` 外的 `/api/**` 需在请求头携带：
+
+```
+X-Api-Key: <配置的密钥>          # 头名由 invmap.auth.header 配置，兼容 "Bearer <token>"
+```
+
+前端通过构建期环境变量 `VITE_API_KEY` 注入（axios 自动加到请求头）。相关环境变量：`INVMAP_AUTH_ENABLED`、`INVMAP_AUTH_HEADER`、`INVMAP_API_KEY`。
+
+## ERP 数据源模式
+
+`invmap.erp.mode=mock`（默认，内置演示）或 `http`（对接真实 ERP）。http 模式配置：`INVMAP_ERP_BASEURL`、`INVMAP_ERP_ORDERS_PATH`、`INVMAP_ERP_AUTH_HEADER`、`INVMAP_ERP_AUTH_TOKEN`。字段映射在 `HttpErpService` 中按贵司 ERP 实际字段调整（已用容错读取，附常见别名）。

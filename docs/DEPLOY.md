@@ -11,6 +11,19 @@
 
 构建（见根 README「一体化构建」）得到 `backend/target/invmap-backend.jar`。
 
+一键构建（自动构建并打入前端）：
+```bash
+cd backend && mvn -Pfrontend -DskipTests package   # 需联网下载 node；产出含前端的单 jar
+```
+
+常用环境变量：
+```bash
+# 鉴权
+INVMAP_AUTH_ENABLED=true INVMAP_API_KEY=your-secret  # 前端构建期 VITE_API_KEY=your-secret
+# ERP 对接
+INVMAP_ERP_MODE=http INVMAP_ERP_BASEURL=http://erp:8080 INVMAP_ERP_ORDERS_PATH=/open/pickup/orders INVMAP_ERP_AUTH_HEADER=Authorization INVMAP_ERP_AUTH_TOKEN="Bearer xxx"
+```
+
 ```bash
 java -jar invmap-backend.jar           # 默认 :8080
 # 可选：自定义端口/配置文件
