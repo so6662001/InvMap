@@ -2,6 +2,7 @@ package com.invmap.erp;
 
 import com.invmap.config.ConfigService;
 import com.invmap.pickup.*;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -11,6 +12,7 @@ import java.util.*;
  * 演示手机号：13800000000(多单多库) / 13900000000(单库多明细) / 13700000000(含冻结)。
  */
 @Service
+@ConditionalOnProperty(name = "invmap.erp.mode", havingValue = "mock", matchIfMissing = true)
 public class MockErpService implements ErpService {
 
     private final ConfigService config;
