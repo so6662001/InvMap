@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 const baseURL = import.meta.env.VITE_API_BASE || '';
-const http = axios.create({ baseURL, timeout: 10000 });
+const apiKey = import.meta.env.VITE_API_KEY || '';
+const http = axios.create({ baseURL, timeout: 10000, headers: apiKey ? { 'X-Api-Key': apiKey } : {} });
 
 async function unwrap(promise) {
   const res = await promise;

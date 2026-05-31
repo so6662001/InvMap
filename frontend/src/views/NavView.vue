@@ -64,7 +64,8 @@
         <label>车型 <select v-model="vehicleId" @change="recompute"><option v-for="v in vehicles" :key="v.id" :value="v.id">{{ v.name }}</option></select></label>
         <label>路线目标 <select v-model="objective" @change="recompute"><option value="distance">距离最短</option><option value="time">时间最短(含拥堵)</option></select></label>
         <label class="chk"><input type="checkbox" v-model="requireWeighbridge" @change="recompute" /> 进出门过磅</label>
-        <div class="cond-veh" v-if="vehicle">车高 {{ vehicle.height }}m · 车货总重 {{ vehicle.weight }}t（用于限高/限重判断）</div>
+        <label>时段 <input type="time" v-model="timeStr" @change="recompute" /></label>
+        <div class="cond-veh" v-if="vehicle">车高 {{ vehicle.height }}m · 总重 {{ vehicle.weight }}t · 车宽 {{ vehicle.width }}m · 转弯R {{ vehicle.turnRadius }} · 载重上限 {{ vehicle.maxPayload }}t</div>
       </div>
       <div class="panel-head"><h2>推荐提货顺序</h2></div>
       <div class="route-info" v-html="routeInfoHtml"></div>
@@ -76,6 +77,14 @@
         <li v-if="plan.order.length" class="step gate"><span class="step-ico">🏁</span> <template v-if="plan.requireWeighbridge"><b>过磅称重</b> → </template>到 <b>{{ park && park.exit.name }}</b> 离场</li>
       </ol>
       <div class="route-help">路线由厂区道路自动规划：从大门出发就近依次经过各仓库，按通行规则（单行/限高/限重）绕行，必要时过磅。道路与各库入口可在「⚙ 仓库配置」调整。</div>
+      <div class="panel-head"><h2>配载（整车载重 / 顺序）</h2></div>
+      <div class="detail-box">
+        <div class="d-row"><span>整车载重上限</span><b>{{ vehicle ? vehicle.maxPayload : '-' }} 吨</b></div>
+        <div class="d-row"><span>本次合计</span><b :class="{ over: loadPlan.over }">{{ loadPlan.total }} 吨</b></div>
+        <div v-if="loadPlan.over" class="route-warn">⚠ 超过整车载重上限（超 {{ (loadPlan.total - loadPlan.payload).toFixed(1) }} 吨），需分批提货或更换车型。</div>
+        <div class="d-sub">建议配载顺序（重货先装 / 垫底）：</div>
+        <ol class="load-list"><li v-for="it in loadPlan.list" :key="it.key">{{ it.goodsName }} · <b>{{ it.weight }}t</b> <span class="muted">（{{ it.warehouseName }} {{ it.locationCode }}）</span></li></ol>
+      </div>
       <div class="panel-head"><h2>选中提单 / 商品</h2></div>
       <div class="detail-box" v-html="detailHtml"></div>
     </aside>
@@ -90,7 +99,7 @@ import { useSessionStore } from '../stores/session.js';
 import { useConfigStore } from '../stores/config.js';
 import { planRoute } from '../lib/route.js';
 import { Warehouse3D } from '../lib/warehouse3d.js';
-import { isWebGLAvailable } from '../lib/geo.js';
+import { isWebGLAvailable, toMinutes } from '../lib/geo.js';
 import { printOrders } from '../lib/print.js';
 
 const CIRCLED = '①②③④⑤⑥⑦⑧';
@@ -112,6 +121,7 @@ const vehicles = ref([]);
 const vehicleId = ref('flat');
 const objective = ref('distance');
 const requireWeighbridge = ref(true);
+const timeStr = ref(nowHHMM());
 const selectedBill = ref('');
 const selectedKey = ref('');
 const viewBadge = ref('厂区总览');
@@ -123,6 +133,13 @@ const routeInfoHtml = ref('');
 const park = computed(() => configStore.park);
 const maskedPhone = computed(() => { const p = session.phone; return p && p.length === 11 ? `${p.slice(0, 3)}****${p.slice(7)}` : p; });
 const vehicle = computed(() => vehicles.value.find((v) => v.id === vehicleId.value) || vehicles.value[0]);
+const loadPlan = computed(() => {
+  const list = [...items.value].sort((a, b) => b.weight - a.weight);
+  const total = +list.reduce((s, it) => s + it.weight, 0).toFixed(1);
+  const payload = vehicle.value ? vehicle.value.maxPayload : 0;
+  return { list, total, payload, over: payload > 0 && total > payload };
+});
+function nowHHMM() { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
 
 const keyOf = (b, i) => `${b}#${i}`;
 const circled = (n) => CIRCLED[n - 1] || n;
@@ -166,7 +183,7 @@ function onModeChange(mode, wh) {
 
 function recompute() {
   if (!configStore.park) return;
-  plan.value = planRoute(items.value, { park: configStore.park, roads: configStore.roads, vehicle: vehicle.value, objective: objective.value, requireWeighbridge: requireWeighbridge.value });
+  plan.value = planRoute(items.value, { park: configStore.park, roads: configStore.roads, vehicle: vehicle.value, objective: objective.value, requireWeighbridge: requireWeighbridge.value, nowMinutes: toMinutes(timeStr.value) });
   for (const k in whSeq) delete whSeq[k];
   plan.value.order.forEach((o, i) => (whSeq[o.warehouseId] = i + 1));
   items.value.forEach((it) => (it.seq = whSeq[it.warehouseId] || 0));

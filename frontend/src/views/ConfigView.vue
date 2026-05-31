@@ -53,6 +53,9 @@
             <label class="cfg-field"><span>限重(0不限)</span><input type="number" v-model.number="r.maxWeight" @change="preview" /></label>
             <label class="cfg-field"><span>限速</span><input type="number" v-model.number="r.speed" @change="preview" /></label>
             <label class="cfg-field"><span>拥堵</span><input type="number" step="0.1" v-model.number="r.congestion" @change="preview" /></label>
+            <label class="cfg-field"><span>限宽(0不限)</span><input type="number" step="0.1" v-model.number="r.maxWidth" @change="preview" /></label>
+            <label class="cfg-field"><span>转弯半径(0不限)</span><input type="number" v-model.number="r.minTurnRadius" @change="preview" /></label>
+            <label class="cfg-field full"><span>禁行时段(如 08:00-09:00,13:00-14:00)</span><input v-model="r.noEntry" @change="preview" /></label>
           </div>
           <button class="mini-print" @click="working.ROADS.horizontals.splice(i, 1); preview()">删除</button>
         </div>
@@ -69,6 +72,9 @@
             <label class="cfg-field"><span>限重(0不限)</span><input type="number" v-model.number="r.maxWeight" @change="preview" /></label>
             <label class="cfg-field"><span>限速</span><input type="number" v-model.number="r.speed" @change="preview" /></label>
             <label class="cfg-field"><span>拥堵</span><input type="number" step="0.1" v-model.number="r.congestion" @change="preview" /></label>
+            <label class="cfg-field"><span>限宽(0不限)</span><input type="number" step="0.1" v-model.number="r.maxWidth" @change="preview" /></label>
+            <label class="cfg-field"><span>转弯半径(0不限)</span><input type="number" v-model.number="r.minTurnRadius" @change="preview" /></label>
+            <label class="cfg-field full"><span>禁行时段(如 08:00-09:00,13:00-14:00)</span><input v-model="r.noEntry" @change="preview" /></label>
           </div>
           <button class="mini-print" @click="working.ROADS.verticals.splice(i, 1); preview()">删除</button>
         </div>
@@ -88,6 +94,8 @@
             <label class="cfg-field"><span>进深</span><input type="number" v-model.number="wh.depth" @change="preview" /></label>
             <label class="cfg-field"><span>入口 X</span><input type="number" v-model.number="wh.entrance.x" @change="preview" /></label>
             <label class="cfg-field"><span>入口 Z</span><input type="number" v-model.number="wh.entrance.z" @change="preview" /></label>
+            <label class="cfg-field"><span>出口X(选填)</span><input type="number" :value="wh.exit ? wh.exit.x : ''" @input="setExit(wh, 'x', $event.target.value)" @change="preview" /></label>
+            <label class="cfg-field"><span>出口Z(选填)</span><input type="number" :value="wh.exit ? wh.exit.z : ''" @input="setExit(wh, 'z', $event.target.value)" @change="preview" /></label>
             <label class="cfg-field"><span>颜色</span><input type="color" :value="numToHex(wh.color)" @input="wh.color = hexToNum($event.target.value); preview()" /></label>
             <label class="cfg-field"><span>货品</span><input v-model="wh.goods" @change="preview" /></label>
             <label class="cfg-field"><span>堆垛类型</span><select v-model="wh.stackType" @change="preview"><option value="bar">成捆型钢/螺纹</option><option value="coil">卷板</option><option value="plate">中厚板</option></select></label>
@@ -158,6 +166,15 @@ function onLayoutChange(wh, text) {
   preview();
 }
 
+function setExit(wh, axis, val) {
+  const v = val === '' ? null : Number(val);
+  if (v == null) {
+    if (wh.exit) { const other = axis === 'x' ? wh.exit.z : wh.exit.x; if (other == null) delete wh.exit; else wh.exit[axis] = undefined; }
+    return;
+  }
+  if (!wh.exit) wh.exit = { x: wh.entrance.x, z: wh.entrance.z };
+  wh.exit[axis] = v;
+}
 function addWarehouse() {
   const n = working.value.PARK.warehouses.length + 1;
   working.value.PARK.warehouses.push({ id: 'WH' + String(n).padStart(2, '0'), name: n + '号库', x: 0, z: 0, width: 60, depth: 36, color: 0x8aa0b8, entrance: { x: 0, z: 18 }, goods: '', stackType: 'bar', layout: [{ zone: 'A', rows: [8, 8] }, { zone: 'B', rows: [8, 6] }] });
