@@ -1,0 +1,5 @@
+# 临时与本地产物
+.tmp_*
+*.log
+node_modules/
+.DS_Store
