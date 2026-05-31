@@ -5,10 +5,13 @@ Java 21 + Spring Boot 3.3 + Maven。提供提单/配置/车型接口，并同源
 ## 运行
 
 ```bash
-mvn spring-boot:run        # 开发
-mvn -DskipTests package    # 打包 target/invmap-backend.jar
+mvn spring-boot:run                 # 开发（仅后端）
+mvn -DskipTests package             # 仅打包后端
+mvn -Pfrontend -DskipTests package  # 一键：构建Vue并打入单jar（需联网装node）
 java -jar target/invmap-backend.jar
 ```
+
+鉴权：`invmap.auth.enabled/header/api-key`（前端 `VITE_API_KEY`）。ERP：`invmap.erp.mode=mock|http` 及 `invmap.erp.*`。
 
 默认端口 `8080`（`application.yml` 可改）。配置持久化文件：`INVMAP_CONFIG_FILE`（默认 `./data/park-config.json`）。
 

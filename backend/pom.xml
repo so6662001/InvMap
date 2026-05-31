@@ -19,6 +19,8 @@
 
   <properties>
     <java.version>21</java.version>
+    <frontend.dir>${project.basedir}/../frontend</frontend.dir>
+    <node.version>v20.18.0</node.version>
   </properties>
 
   <dependencies>
@@ -46,4 +48,64 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!--
+      一键构建：mvn -Pfrontend package
+      自动安装 node、构建 Vue 前端，并把 dist 拷入后端静态目录，产出可独立运行的单 jar。
+      未启用该 profile 时，默认仅构建后端（适合前后端分开部署/CI）。
+    -->
+    <profile>
+      <id>frontend</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.github.eirslett</groupId>
+            <artifactId>frontend-maven-plugin</artifactId>
+            <version>1.15.1</version>
+            <configuration>
+              <workingDirectory>${frontend.dir}</workingDirectory>
+              <installDirectory>${project.build.directory}</installDirectory>
+            </configuration>
+            <executions>
+              <execution>
+                <id>install-node-and-npm</id>
+                <goals><goal>install-node-and-npm</goal></goals>
+                <configuration><nodeVersion>${node.version}</nodeVersion></configuration>
+              </execution>
+              <execution>
+                <id>npm-install</id>
+                <goals><goal>npm</goal></goals>
+                <configuration><arguments>install</arguments></configuration>
+              </execution>
+              <execution>
+                <id>npm-build</id>
+                <goals><goal>npm</goal></goals>
+                <configuration><arguments>run build</arguments></configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-resources-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>copy-frontend-dist</id>
+                <phase>prepare-package</phase>
+                <goals><goal>copy-resources</goal></goals>
+                <configuration>
+                  <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+                  <resources>
+                    <resource>
+                      <directory>${frontend.dir}/dist</directory>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
