@@ -288,3 +288,11 @@ warehouse.layout = [
 - **一键构建**：`cd backend && mvn -Pfrontend package`（自动装 node、构建 Vue、打入单 jar）。
 - **接口鉴权**：API-Key/Token（`invmap.auth.*`），前端 `VITE_API_KEY` 注入。
 - **真实 ERP 适配**：`invmap.erp.mode=http` 启用 `HttpErpService`（可配置地址/认证/字段映射）。
+
+## 附录 F：首页改为仓库全景 3D
+
+进入系统先展示**仓库全景 3D 图**（厂区俯视总览），画面中下方悬浮两个按钮：
+- **取提单**：点击弹出**手机号录入**弹窗（与原录入页一致），录入查询成功后进入提货导航主页，后续流程不变。
+- **打印结算单**：点击弹出手机号录入，查询成功后直接打印**结算单**（按提单/明细汇总重量，金额以 ERP 结算为准）。
+
+录入组件抽为可复用的 `PhoneEntry`（弹窗/整页通用）；首页路由为 `/`，提货页 `/nav`，配置页 `/config`。

@@ -237,3 +237,25 @@ a { color: inherit; }
 .load-list b { color: #ffd166; }
 .load-list .muted { color: var(--muted); }
 .detail-box b.over { color: #ff7a72; }
+
+/* ===== 首页全景 + 悬浮按钮 ===== */
+.home { position: fixed; inset: 0; background: var(--bg); overflow: hidden; }
+.home-viewport { position: absolute; inset: 0; }
+.home-loading { background: transparent; }
+.home-title { position: absolute; top: 28px; left: 0; right: 0; text-align: center; pointer-events: none; }
+.home-logo { font-size: 30px; font-weight: 800; color: #fff; letter-spacing: 1px; text-shadow: 0 2px 12px rgba(0,0,0,.6); }
+.home-sub { color: #bcd0e6; font-size: 14px; margin-top: 4px; text-shadow: 0 2px 8px rgba(0,0,0,.6); }
+.home-actions { position: absolute; left: 0; right: 0; bottom: 48px; display: flex; gap: 18px; justify-content: center; z-index: 6; }
+.home-btn {
+  min-width: 200px; padding: 18px 28px; font-size: 20px; font-weight: 700; cursor: pointer;
+  border-radius: 14px; border: 1px solid var(--line); background: rgba(21,33,47,.92); color: var(--text);
+  box-shadow: 0 10px 30px rgba(0,0,0,.45); backdrop-filter: blur(4px); transition: .15s;
+}
+.home-btn:hover { transform: translateY(-2px); border-color: var(--accent); }
+.home-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.modal-mask { position: fixed; inset: 0; background: rgba(6,12,22,.72); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.modal-body { position: relative; }
+.modal-body .login-card { box-shadow: 0 24px 70px rgba(0,0,0,.6); }
+.modal-close { position: absolute; top: -10px; right: -10px; width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--panel-2); color: #fff; font-size: 22px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.4); z-index: 2; }
+.modal-close:hover { background: var(--danger); }

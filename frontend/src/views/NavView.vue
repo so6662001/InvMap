@@ -148,13 +148,13 @@ const stCls = (s) => (STATUS[s] || { c: '' }).c;
 const countOf = (whId) => items.value.filter((it) => it.warehouseId === whId).length;
 
 onMounted(async () => {
-  if (!session.phone) { router.replace('/login'); return; }
+  if (!session.phone) { router.replace('/'); return; }
   try { await configStore.load(); } catch (e) { overlay.value = '加载厂区配置失败：' + (e.message || e); return; }
   vehicles.value = configStore.vehicles;
 
   let data;
   try { data = await fetchOrders(session.phone); }
-  catch (e) { if (e.code === 1001) { session.clear(); router.replace('/login'); return; } overlay.value = '获取提单失败：' + (e.message || e); return; }
+  catch (e) { if (e.code === 1001) { session.clear(); router.replace('/'); return; } overlay.value = '获取提单失败：' + (e.message || e); return; }
 
   orders.value = data.orders;
   Object.assign(summary, data.summary);
@@ -252,5 +252,5 @@ function showAll() {
 function back() { if (view3d) view3d.exitInterior(); onModeChange('park', null); }
 function print(list) { printOrders(list, session.phone); }
 function printAll() { printOrders(orders.value, session.phone); }
-function logout() { session.clear(); router.replace('/login'); }
+function logout() { session.clear(); router.replace('/'); }
 </script>
