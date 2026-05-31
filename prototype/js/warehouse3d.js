@@ -1,9 +1,10 @@
 /**
  * 3D 厂区导航场景（Three.js）。
  * 负责渲染：地面 / 道路 / 库房 / 库位标记 / 提货路线 / 高亮与镜头聚焦。
+ * 说明：采用相对路径导入本地内置的 Three.js，无需 import map，兼容性更好。
  */
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as THREE from './vendor/three/three.module.js';
+import { OrbitControls } from './vendor/three/addons/controls/OrbitControls.js';
 import { PARK, ROADS } from './mockErp.js';
 
 // 提货顺序配色（区分不同提单，叠加序号，色盲友好）
@@ -53,6 +54,16 @@ export function locationToWorld(wh, code) {
   return { x, z };
 }
 
+/** 检测 WebGL 是否可用 */
+export function isWebGLAvailable() {
+  try {
+    const c = document.createElement('canvas');
+    return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl')));
+  } catch (e) {
+    return false;
+  }
+}
+
 export class Warehouse3D {
   constructor(container) {
     this.container = container;
@@ -71,12 +82,12 @@ export class Warehouse3D {
     this.scene.background = new THREE.Color(0x0e1726);
     this.scene.fog = new THREE.Fog(0x0e1726, 350, 750);
 
-    this.camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 2000);
+    this.camera = new THREE.PerspectiveCamera(50, (w || 1) / (h || 1), 0.1, 2000);
     this.camera.position.set(0, 260, 300);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setSize(w, h);
+    this.renderer.setSize(w || 800, h || 600);
     this.renderer.shadowMap.enabled = true;
     this.container.appendChild(this.renderer.domElement);
 
@@ -174,7 +185,6 @@ export class Warehouse3D {
     const g = PARK.grid;
     const mat = new THREE.LineBasicMaterial({ color: 0x35506e, transparent: true, opacity: 0.5 });
     const pts = [];
-    const zoneW = wh.width / g.zones.length;
     const x0 = wh.x - wh.width / 2, z0 = wh.z - wh.depth / 2;
     // 列线
     for (let i = 0; i <= g.zones.length * g.colsPerRow; i++) {

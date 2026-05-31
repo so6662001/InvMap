@@ -1,5 +1,5 @@
 import { fetchOrders, maskPhone } from './mockErp.js';
-import { Warehouse3D } from './warehouse3d.js';
+import { Warehouse3D, isWebGLAvailable } from './warehouse3d.js';
 import { planRoute } from './route.js';
 import { printOrders } from './print.js';
 
@@ -15,11 +15,22 @@ if (!phone) location.href = './index.html';
 
 let state = { orders: [], pickable: [], selected: null, view3d: null, plan: null };
 
+const loadingEl = () => document.getElementById('loading');
+function hideLoading() { const el = loadingEl(); if (el) el.style.display = 'none'; }
+function showLoadingMsg(html) { const el = loadingEl(); if (el) { el.style.display = 'flex'; el.innerHTML = html; } }
+
 init();
 
 async function init() {
-  const res = await fetchOrders(phone);
-  if (res.code !== 0) { location.href = './index.html'; return; }
+  let res;
+  try {
+    res = await fetchOrders(phone);
+  } catch (e) {
+    console.error(e);
+    showLoadingMsg('获取提单数据失败，请检查网络后刷新。');
+    return;
+  }
+  if (!res || res.code !== 0) { location.href = './index.html'; return; }
   const { data } = res;
   state.orders = data.orders;
   state.pickable = data.orders.filter((o) => o.status !== 'FROZEN');
@@ -28,20 +39,25 @@ async function init() {
   renderSummary(data.summary);
   renderList();
 
-  // 3D
-  try {
-    state.view3d = new Warehouse3D(document.getElementById('viewport'));
-    state.view3d.setOrders(state.pickable);
-    state.plan = planRoute(state.pickable);
-    state.view3d.setRoute(state.plan);
-    renderRoute(state.plan);
-    document.getElementById('loading').style.display = 'none';
-  } catch (e) {
-    console.error(e);
-    document.getElementById('loading').innerHTML =
-      '3D 加载失败（可能无法访问 CDN）。请联网后刷新；提单列表与路线信息不受影响。';
-    state.plan = planRoute(state.pickable);
-    renderRoute(state.plan);
+  // 路线规划（与 3D 无关，始终可用）
+  try { state.plan = planRoute(state.pickable); renderRoute(state.plan); }
+  catch (e) { console.error('路线规划失败', e); }
+
+  // 3D 场景
+  if (!isWebGLAvailable()) {
+    showLoadingMsg('当前浏览器/设备不支持 WebGL，已自动降级为 2D 信息模式。<br/>'
+      + '<span class="sub">提单列表与提货路线照常使用；如需 3D 请更换支持 WebGL 的浏览器。</span>');
+  } else {
+    try {
+      state.view3d = new Warehouse3D(document.getElementById('viewport'));
+      state.view3d.setOrders(state.pickable);
+      if (state.plan) state.view3d.setRoute(state.plan);
+      hideLoading();
+    } catch (e) {
+      console.error('3D 初始化失败', e);
+      showLoadingMsg('3D 加载失败：' + (e && e.message ? e.message : e) + '<br/>'
+        + '<span class="sub">提单列表与提货路线不受影响。请确认通过 HTTP 访问（不要用 file:// 直接打开），并联网/换用现代浏览器后重试。</span>');
+    }
   }
 
   bindEvents();
@@ -101,7 +117,7 @@ function renderDetail(o) {
     <div class="d-row hl"><span>仓库</span><b>${o.warehouseName}</b></div>
     <div class="d-row hl"><span>库位</span><b>${o.locationText}（${o.locationCode}）</b></div>
     <div class="d-row"><span>提货码</span><b class="code">${o.pickupCode}</b></div>
-    ${seq > 0 ? `<div class="d-tip">该库位为推荐路线第 <b>${seq}</b> 站，已在 3D 图上以红色高亮。</div>` : ''}
+    ${seq > 0 ? `<div class="d-tip">该库位为推荐路线第 <b>${seq}</b> 站${state.view3d ? '，已在 3D 图上以红色高亮' : ''}。</div>` : ''}
     <button class="primary-btn small" id="detailPrint">🖨 打印此提单</button>`;
   document.getElementById('detailPrint').addEventListener('click', () => printOrders([o], phone));
 }

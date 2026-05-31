@@ -5,14 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>我的提货 · 厂区导航</title>
   <link rel="stylesheet" href="./css/style.css" />
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "./js/vendor/three/three.module.js",
-      "three/addons/": "./js/vendor/three/addons/"
-    }
-  }
-  </script>
 </head>
 <body>
   <header class="topbar">
@@ -63,6 +55,42 @@
     </aside>
   </main>
 
-  <script type="module" src="./js/app.js"></script>
+  <!-- 启动诊断：任何脚本/模块加载或运行错误都会在此提示，避免一直停留在“正在加载” -->
+  <script>
+    (function () {
+      var booted = false;
+      window.__invmapBooted = function () { booted = true; };
+      function showErr(msg) {
+        var el = document.getElementById('loading');
+        if (!el) return;
+        el.style.display = 'flex';
+        el.innerHTML = '页面加载出错：' + (msg || '未知错误') +
+          '<br/><span class="sub">请确认<strong>通过 HTTP 访问</strong>（不要用 file:// 直接打开本地文件）。' +
+          '在 prototype 目录运行：<code>python3 -m http.server 8123</code>，再打开 http://localhost:8123/ 。' +
+          '同时建议使用较新的 Chrome / Edge / Firefox / Safari。</span>';
+      }
+      window.addEventListener('error', function (e) {
+        var t = e.target;
+        if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) {
+          showErr('资源加载失败：' + (t.src || t.href || ''));
+        } else if (e.message) {
+          showErr(e.message);
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function (e) {
+        showErr((e.reason && e.reason.message) || String(e.reason));
+      });
+      setTimeout(function () {
+        if (booted) return;
+        var hasCanvas = document.querySelector('#viewport canvas');
+        if (hasCanvas) return;
+        showErr('脚本未能正常启动（可能是浏览器不支持 ES 模块，或未通过 HTTP 访问）。');
+      }, 6000);
+    })();
+  </script>
+  <script type="module">
+    import './js/app.js';
+    window.__invmapBooted && window.__invmapBooted();
+  </script>
 </body>
 </html>
