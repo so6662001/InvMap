@@ -259,3 +259,14 @@ a { color: inherit; }
 .modal-body .login-card { box-shadow: 0 24px 70px rgba(0,0,0,.6); }
 .modal-close { position: absolute; top: -10px; right: -10px; width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--panel-2); color: #fff; font-size: 22px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.4); z-index: 2; }
 .modal-close:hover { background: var(--danger); }
+
+/* ===== 结算单录入/预览 ===== */
+.phone-input.code { font-size: 22px; letter-spacing: 2px; text-transform: none; }
+.settle-card .settle-rows { margin: 6px 0 14px; }
+.settle-card .d-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+.settle-card .d-row span { color: var(--muted); }
+.settle-card .d-row b { color: var(--text); }
+.settle-card .d-row.hl b { color: #ffd166; font-size: 18px; }
+.settle-card .d-row .code { font-family: monospace; letter-spacing: 2px; }
+.settle-actions { display: grid; gap: 10px; }
+.ghost-btn.wide { width: 100%; justify-content: center; padding: 12px; }

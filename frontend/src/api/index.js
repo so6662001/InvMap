@@ -13,6 +13,7 @@ async function unwrap(promise) {
 }
 
 export const fetchOrders = (phone) => unwrap(http.get('/api/pickup/orders', { params: { phone } }));
+export const getSettlement = (code) => unwrap(http.get('/api/settlement', { params: { code } }));
 export const getConfig = () => unwrap(http.get('/api/config'));
 export const saveConfig = (cfg) => unwrap(http.post('/api/config', cfg));
 export const resetConfig = () => unwrap(http.post('/api/config/reset'));
