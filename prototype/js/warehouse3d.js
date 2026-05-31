@@ -1,16 +1,17 @@
 /**
  * 3D 厂区导航场景（Three.js）。
  * 渲染：厂区外观（库房/道路/大门）+ 提货明细库位标记 + 提货行车路线；
- * 支持「进入库内」细致 3D 视图（库内分区/排位货架，目标库位红色高亮，可多库位）。
+ * 支持「进入库内」细致 3D 视图（按灵活布局：每区排数不同、每排库位数也不同）。
  * 配置来自 warehouseConfig.js（可在「仓库配置」页面定制）。
  */
 import * as THREE from './vendor/three/three.module.js';
 import { OrbitControls } from './vendor/three/addons/controls/OrbitControls.js';
-import { getPark, getRoads, gridOf } from './warehouseConfig.js';
+import { getPark, getRoads, layoutOf } from './warehouseConfig.js';
 
 const SEQ_COLORS = [0x2f80ed, 0xf2994a, 0x27ae60, 0x9b51e0, 0x00b8d9, 0xeb5757, 0xf2c94c, 0x56ccf2];
 const HIGHLIGHT = 0xff3b30;
 const NEUTRAL = 0x8aa0b8;
+const CIRCLED = '①②③④⑤⑥⑦⑧';
 
 function makeTextSprite(text, { fontSize = 48, bg = 'rgba(20,28,40,0.85)', color = '#fff', pad = 16 } = {}) {
   const canvas = document.createElement('canvas');
@@ -19,12 +20,10 @@ function makeTextSprite(text, { fontSize = 48, bg = 'rgba(20,28,40,0.85)', color
   const w = ctx.measureText(text).width + pad * 2;
   canvas.width = w; canvas.height = fontSize + pad * 2;
   ctx.font = `bold ${fontSize}px "Microsoft YaHei", "PingFang SC", sans-serif`;
-  ctx.fillStyle = bg;
-  roundRect(ctx, 0, 0, canvas.width, canvas.height, 14); ctx.fill();
+  ctx.fillStyle = bg; roundRect(ctx, 0, 0, canvas.width, canvas.height, 14); ctx.fill();
   ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.minFilter = THREE.LinearFilter;
+  const tex = new THREE.CanvasTexture(canvas); tex.minFilter = THREE.LinearFilter;
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
   sprite.scale.set(canvas.width / 6, canvas.height / 6, 1);
   return sprite;
@@ -35,19 +34,27 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
 
-export function locationToWorld(wh, code, grid) {
-  const g = grid || gridOf(wh);
-  const [zone, rowStr, colStr] = code.split('-');
-  const zi = Math.max(0, g.zones.indexOf(zone));
-  const row = parseInt(rowStr, 10) || 1;
-  const col = parseInt(colStr, 10) || 1;
-  const zoneW = wh.width / g.zones.length;
-  const cellW = zoneW / g.colsPerRow;
-  const cellD = wh.depth / g.rowsPerZone;
-  return {
-    x: wh.x - wh.width / 2 + zi * zoneW + (col - 0.5) * cellW,
-    z: wh.z - wh.depth / 2 + (row - 0.5) * cellD
-  };
+/** 解析库位编码 → {zi,row,cols,col,rowCount,Z}（按灵活布局） */
+function resolveCell(wh, code) {
+  const layout = layoutOf(wh);
+  const [zone, rowStr, colStr] = String(code).split('-');
+  let zi = layout.findIndex((z) => z.zone === zone); if (zi < 0) zi = 0;
+  const zcfg = layout[zi] || { zone, rows: [1] };
+  const rowCount = zcfg.rows.length;
+  const row = Math.min(rowCount, Math.max(1, parseInt(rowStr, 10) || 1));
+  const cols = Math.max(1, zcfg.rows[row - 1] || 1);
+  const col = Math.min(cols, Math.max(1, parseInt(colStr, 10) || 1));
+  return { layout, Z: layout.length, zi, zcfg, rowCount, cols, row, col };
+}
+
+/** 库位编码 → 库房内世界坐标（厂区外观图用） */
+export function locationToWorld(wh, code) {
+  const r = resolveCell(wh, code);
+  const zoneW = wh.width / r.Z;
+  const x = wh.x - wh.width / 2 + r.zi * zoneW + (r.col - 0.5) * (zoneW / r.cols);
+  const rowD = wh.depth / r.rowCount;
+  const z = wh.z - wh.depth / 2 + (r.row - 0.5) * rowD;
+  return { x, z };
 }
 
 export function isWebGLAvailable() {
@@ -59,20 +66,14 @@ export class Warehouse3D {
   constructor(container, opts = {}) {
     this.container = container;
     this.onModeChange = opts.onModeChange || (() => {});
-    this.PARK = getPark();
-    this.ROADS = getRoads();
+    this.PARK = getPark(); this.ROADS = getRoads();
     this.markers = new Map();
     this.routeGroup = null;
     this.parkGroup = new THREE.Group();
     this.interiorGroup = null;
-    this.mode = 'park';
-    this.currentInterior = null;
-    this.tween = null;
-    this._raf = null;
-    this._initScene();
-    this._buildPark();
-    this.scene.add(this.parkGroup);
-    this._animate();
+    this.mode = 'park'; this.currentInterior = null;
+    this.tween = null; this._raf = null;
+    this._initScene(); this._buildPark(); this.scene.add(this.parkGroup); this._animate();
     this._onResizeBound = () => this._onResize();
     window.addEventListener('resize', this._onResizeBound);
   }
@@ -90,33 +91,24 @@ export class Warehouse3D {
     this.renderer.shadowMap.enabled = true;
     this.container.appendChild(this.renderer.domElement);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
-    this.controls.maxPolarAngle = Math.PI / 2.05;
+    this.controls.enableDamping = true; this.controls.maxPolarAngle = Math.PI / 2.05;
     this.controls.target.set(0, 0, 10);
     this.scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x223044, 0.95));
     const dir = new THREE.DirectionalLight(0xffffff, 0.9);
     dir.position.set(120, 240, 160); dir.castShadow = true;
     dir.shadow.mapSize.set(1024, 1024);
-    dir.shadow.camera.left = -260; dir.shadow.camera.right = 260;
-    dir.shadow.camera.top = 260; dir.shadow.camera.bottom = -260;
+    dir.shadow.camera.left = -260; dir.shadow.camera.right = 260; dir.shadow.camera.top = 260; dir.shadow.camera.bottom = -260;
     this.scene.add(dir);
   }
 
-  // ===== 厂区外观 =====
   _buildPark() {
     const PARK = this.PARK, ROADS = this.ROADS;
     const { width, depth } = PARK.parkSize;
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), new THREE.MeshStandardMaterial({ color: 0x1b2a3d }));
     ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; this.parkGroup.add(ground);
     const roadMat = new THREE.MeshStandardMaterial({ color: 0x33425a }); const ROAD_W = 14;
-    ROADS.horizontals.forEach((r) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.abs(r.x1 - r.x0), ROAD_W), roadMat);
-      m.rotation.x = -Math.PI / 2; m.position.set((r.x0 + r.x1) / 2, 0.05, r.z); this.parkGroup.add(m);
-    });
-    ROADS.verticals.forEach((r) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_W, Math.abs(r.z1 - r.z0)), roadMat);
-      m.rotation.x = -Math.PI / 2; m.position.set(r.x, 0.05, (r.z0 + r.z1) / 2); this.parkGroup.add(m);
-    });
+    ROADS.horizontals.forEach((r) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.abs(r.x1 - r.x0), ROAD_W), roadMat); m.rotation.x = -Math.PI / 2; m.position.set((r.x0 + r.x1) / 2, 0.05, r.z); this.parkGroup.add(m); });
+    ROADS.verticals.forEach((r) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_W, Math.abs(r.z1 - r.z0)), roadMat); m.rotation.x = -Math.PI / 2; m.position.set(r.x, 0.05, (r.z0 + r.z1) / 2); this.parkGroup.add(m); });
     PARK.warehouses.forEach((wh) => this._buildWarehouse(wh));
     this._buildGate(PARK.gate, '🚪 ' + PARK.gate.name, 0x27ae60);
     this._buildGate(PARK.exit, PARK.exit.name, 0xeb5757);
@@ -127,42 +119,47 @@ export class Warehouse3D {
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(wh.width, wh.depth), new THREE.MeshStandardMaterial({ color: 0x223850 }));
     floor.rotation.x = -Math.PI / 2; floor.position.set(wh.x, 0.1, wh.z); floor.receiveShadow = true; group.add(floor);
     const wallMat = new THREE.MeshStandardMaterial({ color: wh.color || NEUTRAL, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
-    const box = new THREE.Mesh(new THREE.BoxGeometry(wh.width, wallH, wh.depth), wallMat);
-    box.position.set(wh.x, wallH / 2, wh.z); group.add(box);
+    const box = new THREE.Mesh(new THREE.BoxGeometry(wh.width, wallH, wh.depth), wallMat); box.position.set(wh.x, wallH / 2, wh.z); group.add(box);
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(wh.width, wallH, wh.depth)), new THREE.LineBasicMaterial({ color: 0x6f8db0 }));
     edges.position.copy(box.position); group.add(edges);
     this._buildExteriorGrid(group, wh);
-    const label = makeTextSprite(wh.name, { fontSize: 56, bg: 'rgba(20,40,70,0.92)' });
-    label.position.set(wh.x, wallH + 16, wh.z); group.add(label);
+    const label = makeTextSprite(wh.name, { fontSize: 56, bg: 'rgba(20,40,70,0.92)' }); label.position.set(wh.x, wallH + 16, wh.z); group.add(label);
     const ent = new THREE.Mesh(new THREE.ConeGeometry(3.2, 8, 4), new THREE.MeshStandardMaterial({ color: 0x27ae60 }));
     ent.rotation.x = Math.PI; ent.position.set(wh.entrance.x, 6, wh.entrance.z); group.add(ent);
     this.parkGroup.add(group);
   }
 
+  // 按灵活布局画外观网格（分区/排/每排库位数可不同）
   _buildExteriorGrid(group, wh) {
-    const g = gridOf(wh);
+    const layout = layoutOf(wh); const Z = layout.length;
+    const x0 = wh.x - wh.width / 2, z0 = wh.z - wh.depth / 2;
+    const zoneW = wh.width / Z;
     const mat = new THREE.LineBasicMaterial({ color: 0x35506e, transparent: true, opacity: 0.5 });
-    const pts = []; const x0 = wh.x - wh.width / 2, z0 = wh.z - wh.depth / 2;
-    const cols = g.zones.length * g.colsPerRow;
-    for (let i = 0; i <= cols; i++) { const x = x0 + i * (wh.width / cols); pts.push(new THREE.Vector3(x, 0.2, z0), new THREE.Vector3(x, 0.2, z0 + wh.depth)); }
-    for (let j = 0; j <= g.rowsPerZone; j++) { const z = z0 + j * (wh.depth / g.rowsPerZone); pts.push(new THREE.Vector3(x0, 0.2, z), new THREE.Vector3(x0 + wh.width, 0.2, z)); }
+    const v = (x, z) => new THREE.Vector3(x, 0.2, z);
+    const pts = [];
+    for (let i = 0; i <= Z; i++) { const x = x0 + i * zoneW; pts.push(v(x, z0), v(x, z0 + wh.depth)); }
+    layout.forEach((zcfg, zi) => {
+      const zx = x0 + zi * zoneW; const rowCount = zcfg.rows.length; const rowD = wh.depth / rowCount;
+      for (let r = 0; r <= rowCount; r++) { const z = z0 + r * rowD; pts.push(v(zx, z), v(zx + zoneW, z)); }
+      for (let r = 0; r < rowCount; r++) {
+        const cols = zcfg.rows[r]; const cellW = zoneW / cols; const zt = z0 + r * rowD, zb = z0 + (r + 1) * rowD;
+        for (let c = 1; c < cols; c++) { const x = zx + c * cellW; pts.push(v(x, zt), v(x, zb)); }
+      }
+    });
     group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), mat));
   }
 
   _buildGate(g, text, color) {
     const post = new THREE.Mesh(new THREE.BoxGeometry(10, 12, 10), new THREE.MeshStandardMaterial({ color }));
     post.position.set(g.x, 6, g.z); post.castShadow = true; this.parkGroup.add(post);
-    const label = makeTextSprite(text, { fontSize: 44, bg: 'rgba(20,40,40,0.9)' });
-    label.position.set(g.x, 26, g.z); this.parkGroup.add(label);
+    const label = makeTextSprite(text, { fontSize: 44, bg: 'rgba(20,40,40,0.9)' }); label.position.set(g.x, 26, g.z); this.parkGroup.add(label);
   }
 
-  // ===== 明细库位标记（厂区外观）=====
-  // items: [{ key, billNo, warehouseId, locationCode, goodsName, seq }]
+  // ===== 明细库位标记 =====
   setItems(items) {
     this.clearMarkers();
     items.forEach((it) => {
-      const wh = this.PARK.warehouses.find((w) => w.id === it.warehouseId);
-      if (!wh) return;
+      const wh = this.PARK.warehouses.find((w) => w.id === it.warehouseId); if (!wh) return;
       const pos = locationToWorld(wh, it.locationCode);
       const color = it.seq > 0 ? SEQ_COLORS[(it.seq - 1) % SEQ_COLORS.length] : NEUTRAL;
       const group = new THREE.Group();
@@ -170,35 +167,28 @@ export class Warehouse3D {
       pin.position.set(pos.x, 12, pos.z); pin.castShadow = true; group.add(pin);
       const head = new THREE.Mesh(new THREE.SphereGeometry(3.2, 18, 18), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.35 }));
       head.position.set(pos.x, 26, pos.z); group.add(head);
-      const tag = makeTextSprite(`${it.seq > 0 ? '①②③④⑤⑥⑦⑧'[it.seq - 1] || it.seq : ''} ${it.locationCode}`.trim(), { fontSize: 32, bg: `#${color.toString(16).padStart(6, '0')}` });
+      const tag = makeTextSprite(`${it.seq > 0 ? (CIRCLED[it.seq - 1] || it.seq) : ''} ${it.locationCode}`.trim(), { fontSize: 32, bg: `#${color.toString(16).padStart(6, '0')}` });
       tag.position.set(pos.x, 37, pos.z); group.add(tag);
       this.scene.add(group);
       this.markers.set(it.key, { group, head, pin, tag, baseColor: color, pos, billNo: it.billNo, warehouseId: it.warehouseId });
     });
   }
-
   clearMarkers() { this.markers.forEach((m) => this.scene.remove(m.group)); this.markers.clear(); }
 
   _setMarker(m, on) {
     const c = on ? HIGHLIGHT : m.baseColor;
-    m.head.material.color.setHex(c); m.head.material.emissive.setHex(c);
-    m.pin.material.color.setHex(c);
+    m.head.material.color.setHex(c); m.head.material.emissive.setHex(c); m.pin.material.color.setHex(c);
     m.group.scale.setScalar(on ? 1.6 : 1);
     const dim = on ? 1 : 0.25;
     m.head.material.opacity = dim; m.head.material.transparent = !on;
     m.pin.material.opacity = dim; m.pin.material.transparent = !on;
-    m.tag.material.opacity = on ? 1 : 0.28;
-    m._blink = on;
+    m.tag.material.opacity = on ? 1 : 0.28; m._blink = on;
   }
-
-  /** 高亮一组标记（按 key），并把镜头聚焦到它们 */
   highlightKeys(keys) {
-    const set = new Set(keys);
-    const pts = [];
+    const set = new Set(keys); const pts = [];
     this.markers.forEach((m, k) => { const on = set.has(k); this._setMarker(m, on); if (on) pts.push(m.pos); });
     if (pts.length) this._focusPoints(pts);
   }
-
   showAll() {
     this.exitInterior(true);
     this.markers.forEach((m) => this._setMarker(m, false));
@@ -206,7 +196,7 @@ export class Warehouse3D {
     this.resetView();
   }
 
-  // ===== 提货路线 =====
+  // ===== 路线 =====
   setRoute(plan) {
     if (this.routeGroup) this.scene.remove(this.routeGroup);
     this.routeGroup = new THREE.Group();
@@ -214,15 +204,13 @@ export class Warehouse3D {
     plan.legs.forEach((leg) => leg.path.forEach((p) => pts.push(new THREE.Vector3(p.x, 1.2, p.z))));
     if (pts.length >= 2) {
       const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.1);
-      const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(20, pts.length * 4), 1.6, 8, false),
-        new THREE.MeshStandardMaterial({ color: 0xffd166, emissive: 0xffaa00, emissiveIntensity: 0.4 }));
+      const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(20, pts.length * 4), 1.6, 8, false), new THREE.MeshStandardMaterial({ color: 0xffd166, emissive: 0xffaa00, emissiveIntensity: 0.4 }));
       this.routeGroup.add(tube);
       const arrowCount = Math.min(40, Math.floor(curve.getLength() / 22));
       for (let i = 1; i <= arrowCount; i++) {
         const t = i / (arrowCount + 1); const p = curve.getPointAt(t); const tan = curve.getTangentAt(t);
         const arrow = new THREE.Mesh(new THREE.ConeGeometry(2.4, 6, 12), new THREE.MeshStandardMaterial({ color: 0xffd166 }));
-        arrow.position.copy(p); arrow.position.y = 3;
-        arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tan.clone().normalize());
+        arrow.position.copy(p); arrow.position.y = 3; arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tan.clone().normalize());
         this.routeGroup.add(arrow);
       }
     }
@@ -233,14 +221,9 @@ export class Warehouse3D {
     this.scene.add(this.routeGroup);
   }
 
-  // ===== 库内内部视图 =====
-  /**
-   * @param {string} warehouseId
-   * @param {Array} highlights [{code, label}] 该库内要高亮的库位（可多个）
-   */
+  // ===== 库内视图（灵活布局）=====
   enterInterior(warehouseId, highlights) {
-    const wh = this.PARK.warehouses.find((w) => w.id === warehouseId);
-    if (!wh) return;
+    const wh = this.PARK.warehouses.find((w) => w.id === warehouseId); if (!wh) return;
     this._disposeInterior();
     this.interiorGroup = this._buildInterior(wh, highlights || []);
     this.scene.add(this.interiorGroup);
@@ -252,89 +235,75 @@ export class Warehouse3D {
     this._startTween(cam.position, cam.target);
     this.onModeChange('interior', wh);
   }
-
   exitInterior(silent) {
     if (this.mode !== 'interior') { if (!silent) this.onModeChange('park', null); return; }
     this._disposeInterior();
-    this.parkGroup.visible = true;
-    if (this.routeGroup) this.routeGroup.visible = true;
+    this.parkGroup.visible = true; if (this.routeGroup) this.routeGroup.visible = true;
     this.markers.forEach((m) => (m.group.visible = true));
     this.mode = 'park'; this.currentInterior = null;
     if (!silent) { this.resetView(); this.onModeChange('park', null); }
   }
-
   isInterior() { return this.mode === 'interior'; }
-
   _disposeInterior() {
     if (this.interiorGroup) {
       this.scene.remove(this.interiorGroup);
-      this.interiorGroup.traverse((o) => {
-        if (o.geometry) o.geometry.dispose();
-        if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.map && m.map.dispose && m.map.dispose());
-      });
+      this.interiorGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.map && m.map.dispose && m.map.dispose()); });
       this.interiorGroup = null;
     }
   }
 
   _buildInterior(wh, highlights) {
-    const g = gridOf(wh);
-    const Z = g.zones.length, R = g.rowsPerZone, C = g.colsPerRow;
+    const layout = layoutOf(wh); const Z = layout.length;
     const cellW = 8, cellD = 9, zoneAisle = 12, frontAisle = 20;
-    const zoneW = C * cellW;
-    const totalW = Z * zoneW + (Z - 1) * zoneAisle;
-    const gridD = R * cellD; const totalD = gridD + frontAisle;
-    const grp = new THREE.Group();
+    const zoneCols = layout.map((z) => Math.max(1, ...z.rows));
+    const zoneWidths = zoneCols.map((c) => c * cellW);
+    const totalW = zoneWidths.reduce((a, b) => a + b, 0) + (Z - 1) * zoneAisle;
+    const maxRows = Math.max(1, ...layout.map((z) => z.rows.length));
+    const gridD = maxRows * cellD; const totalD = gridD + frontAisle;
+    const zoneStartX = []; { let cx = -totalW / 2; layout.forEach((z, zi) => { zoneStartX[zi] = cx; cx += zoneWidths[zi] + zoneAisle; }); }
+    const rowZc = (r) => -totalD / 2 + (r - 0.5) * cellD;
 
+    const grp = new THREE.Group();
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(totalW + 30, totalD + 30), new THREE.MeshStandardMaterial({ color: 0x1a2738 }));
     floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; grp.add(floor);
     const aisle = new THREE.Mesh(new THREE.PlaneGeometry(totalW + 24, frontAisle - 4), new THREE.MeshStandardMaterial({ color: 0x2a3a52 }));
     aisle.rotation.x = -Math.PI / 2; aisle.position.set(0, 0.04, totalD / 2 - (frontAisle - 4) / 2); grp.add(aisle);
 
-    const zoneStartX = (zi) => -totalW / 2 + zi * (zoneW + zoneAisle);
-    const rowZ = (r) => -totalD / 2 + (r + 0.5) * cellD;
-
     // 高亮库位集合
     const hiCells = (highlights || []).map((h) => {
-      const [zone, rowStr, colStr] = h.code.split('-');
-      return {
-        zi: Math.max(0, g.zones.indexOf(zone)),
-        row: Math.min(R - 1, Math.max(0, (parseInt(rowStr, 10) || 1) - 1)),
-        col: Math.min(C - 1, Math.max(0, (parseInt(colStr, 10) || 1) - 1)),
-        code: h.code, label: h.label
-      };
+      const r = resolveCell(wh, h.code);
+      return { zi: r.zi, row: r.row, col: r.col, cols: r.cols, code: h.code, label: h.label };
     });
-    const isHiCell = (zi, row, col) => hiCells.find((h) => h.zi === zi && h.row === row && h.col === col);
+    const isHi = (zi, row, col) => hiCells.find((h) => h.zi === zi && h.row === row && h.col === col);
 
     const stackMat = new THREE.MeshStandardMaterial({ color: 0x808d9c, metalness: 0.55, roughness: 0.5 });
     const stackHiMat = new THREE.MeshStandardMaterial({ color: HIGHLIGHT, emissive: 0x661210, emissiveIntensity: 0.5, metalness: 0.4, roughness: 0.5 });
 
-    for (let zi = 0; zi < Z; zi++) {
-      const zx = zoneStartX(zi);
-      const zoneFloor = new THREE.Mesh(new THREE.PlaneGeometry(zoneW + 2, gridD + 2), new THREE.MeshStandardMaterial({ color: 0x223247 }));
-      zoneFloor.rotation.x = -Math.PI / 2; zoneFloor.position.set(zx + zoneW / 2, 0.06, -totalD / 2 + gridD / 2); grp.add(zoneFloor);
-      const zlabel = makeTextSprite(`${g.zones[zi]} 区`, { fontSize: 60, bg: 'rgba(47,128,237,0.95)', pad: 22 });
-      zlabel.position.set(zx + zoneW / 2, 26, totalD / 2 - 4); zlabel.scale.multiplyScalar(1.1); grp.add(zlabel);
-      for (let col = 0; col < C; col++) for (let r = 0; r < R; r++) {
-        const cx = zx + (col + 0.5) * cellW; const cz = rowZ(r);
-        const hi = isHiCell(zi, r, col);
-        this._buildStack(grp, wh.stackType, cx, cz, cellW, cellD, hi ? stackHiMat : stackMat, !!hi);
+    layout.forEach((zcfg, zi) => {
+      const zx = zoneStartX[zi]; const zw = zoneWidths[zi]; const rowCount = zcfg.rows.length;
+      const zoneFloor = new THREE.Mesh(new THREE.PlaneGeometry(zw + 2, rowCount * cellD + 2), new THREE.MeshStandardMaterial({ color: 0x223247 }));
+      zoneFloor.rotation.x = -Math.PI / 2; zoneFloor.position.set(zx + zw / 2, 0.06, -totalD / 2 + (rowCount * cellD) / 2); grp.add(zoneFloor);
+      const zlabel = makeTextSprite(`${zcfg.zone} 区`, { fontSize: 58, bg: 'rgba(47,128,237,0.95)', pad: 22 });
+      zlabel.position.set(zx + zw / 2, 26, totalD / 2 - 4); zlabel.scale.multiplyScalar(1.05); grp.add(zlabel);
+      for (let r = 1; r <= rowCount; r++) {
+        const cols = zcfg.rows[r - 1];
+        const rlab = makeTextSprite(`${zcfg.zone}-${String(r).padStart(2, '0')}（${cols}位）`, { fontSize: 24, bg: 'rgba(20,30,45,0.82)' });
+        rlab.position.set(zx - 5, 5, rowZc(r)); grp.add(rlab);
+        for (let c = 1; c <= cols; c++) {
+          const cx = zx + (c - 0.5) * cellW; const cz = rowZc(r);
+          const hi = isHi(zi, r, c);
+          this._buildStack(grp, wh.stackType, cx, cz, cellW, cellD, hi ? stackHiMat : stackMat, !!hi);
+        }
       }
-    }
-    for (let r = 0; r < R; r++) {
-      const lab = makeTextSprite(`${String(r + 1).padStart(2, '0')}排`, { fontSize: 26, bg: 'rgba(20,30,45,0.8)' });
-      lab.position.set(-totalW / 2 - 8, 5, rowZ(r)); grp.add(lab);
-    }
+    });
 
-    // 高亮标注
     const hiPts = [];
     hiCells.forEach((h) => {
-      const cx = zoneStartX(h.zi) + (h.col + 0.5) * cellW; const cz = rowZ(h.row);
+      const cx = zoneStartX[h.zi] + (h.col - 0.5) * cellW; const cz = rowZc(h.row);
       hiPts.push({ x: cx, z: cz });
-      const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 40, 14),
-        new THREE.MeshStandardMaterial({ color: HIGHLIGHT, emissive: HIGHLIGHT, emissiveIntensity: 0.6, transparent: true, opacity: 0.85 }));
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 40, 14), new THREE.MeshStandardMaterial({ color: HIGHLIGHT, emissive: HIGHLIGHT, emissiveIntensity: 0.6, transparent: true, opacity: 0.85 }));
       beam.position.set(cx, 20, cz); grp.add(beam);
-      const ring = new THREE.Mesh(new THREE.RingGeometry(cellW * 0.55, cellW * 0.75, 28),
-        new THREE.MeshBasicMaterial({ color: HIGHLIGHT, side: THREE.DoubleSide, transparent: true, opacity: 0.8 }));
+      const ring = new THREE.Mesh(new THREE.RingGeometry(cellW * 0.55, cellW * 0.75, 28), new THREE.MeshBasicMaterial({ color: HIGHLIGHT, side: THREE.DoubleSide, transparent: true, opacity: 0.8 }));
       ring.rotation.x = -Math.PI / 2; ring.position.set(cx, 0.3, cz); grp.add(ring);
       const tag = makeTextSprite('📍 ' + (h.label ? `${h.label} · ${h.code}` : h.code), { fontSize: 38, bg: 'rgba(235,87,87,0.96)', pad: 16 });
       tag.position.set(cx, 46, cz); tag.scale.multiplyScalar(1.1); grp.add(tag);
@@ -342,17 +311,13 @@ export class Warehouse3D {
 
     const ent = new THREE.Mesh(new THREE.ConeGeometry(4, 10, 4), new THREE.MeshStandardMaterial({ color: 0x27ae60 }));
     ent.rotation.x = Math.PI; ent.position.set(0, 7, totalD / 2 + 6); grp.add(ent);
-    const entLabel = makeTextSprite('库门 / 入口', { fontSize: 36, bg: 'rgba(20,60,40,0.92)' });
-    entLabel.position.set(0, 20, totalD / 2 + 6); grp.add(entLabel);
-    const nameLabel = makeTextSprite(`${wh.name} · 库内（共 ${hiCells.length} 个目标库位）`, { fontSize: 46, bg: 'rgba(20,40,70,0.95)' });
+    const entLabel = makeTextSprite('库门 / 入口', { fontSize: 36, bg: 'rgba(20,60,40,0.92)' }); entLabel.position.set(0, 20, totalD / 2 + 6); grp.add(entLabel);
+    const nameLabel = makeTextSprite(`${wh.name} · 库内（${layout.length} 区，目标库位 ${hiCells.length} 个）`, { fontSize: 44, bg: 'rgba(20,40,70,0.95)' });
     nameLabel.position.set(0, 60, -totalD / 2 - 6); grp.add(nameLabel);
 
     const focus = hiPts.length ? { x: hiPts.reduce((s, p) => s + p.x, 0) / hiPts.length, z: hiPts.reduce((s, p) => s + p.z, 0) / hiPts.length } : { x: 0, z: 0 };
     const span = Math.max(totalW, totalD);
-    grp.userData.camera = {
-      position: new THREE.Vector3(focus.x * 0.4, span * 0.62, totalD / 2 + span * 0.62),
-      target: new THREE.Vector3(focus.x, 6, focus.z)
-    };
+    grp.userData.camera = { position: new THREE.Vector3(focus.x * 0.4, span * 0.62, totalD / 2 + span * 0.62), target: new THREE.Vector3(focus.x, 6, focus.z) };
     return grp;
   }
 
@@ -366,10 +331,8 @@ export class Warehouse3D {
 
   // ===== 镜头 =====
   _focusPoints(pts) {
-    const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
-    const cz = pts.reduce((s, p) => s + p.z, 0) / pts.length;
-    let spread = 40;
-    pts.forEach((p) => { spread = Math.max(spread, Math.hypot(p.x - cx, p.z - cz)); });
+    const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length, cz = pts.reduce((s, p) => s + p.z, 0) / pts.length;
+    let spread = 40; pts.forEach((p) => { spread = Math.max(spread, Math.hypot(p.x - cx, p.z - cz)); });
     const d = Math.max(110, spread * 2.4);
     this._startTween(new THREE.Vector3(cx + d * 0.35, d * 0.85, cz + d), new THREE.Vector3(cx, 8, cz));
   }
@@ -399,7 +362,6 @@ export class Warehouse3D {
     }
     const time = performance.now() * 0.005;
     this.markers.forEach((m) => { m.head.scale.setScalar(m._blink ? 1 + Math.sin(time) * 0.25 : 1); });
-    this.controls.update();
-    this.renderer.render(this.scene, this.camera);
+    this.controls.update(); this.renderer.render(this.scene, this.camera);
   }
 }

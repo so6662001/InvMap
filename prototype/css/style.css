@@ -209,3 +209,11 @@ a { color: inherit; }
 .di-list { display: grid; gap: 6px; margin-bottom: 8px; }
 .di-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 8px 10px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; }
 .di-row b { color: #ffd166; white-space: nowrap; }
+
+/* ===== 库内布局编辑 ===== */
+.cfg-field.full { grid-column: 1 / -1; }
+.cfg-field textarea { background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 8px; font-size: 13px; font-family: monospace; line-height: 1.6; resize: vertical; }
+.cfg-field textarea:focus { outline: none; border-color: var(--accent); }
+.layout-tip { font-size: 11px; color: var(--muted); margin: 10px 0 6px; line-height: 1.6; }
+.layout-tip code { background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 4px; }
+.layout-tip b { color: var(--text); }

@@ -1,12 +1,13 @@
 /**
  * 厂区 / 库房配置（可定制）。
- * - 默认配置 DEFAULT_PARK / DEFAULT_ROADS
- * - 支持在「仓库配置」页面编辑后保存到 localStorage，主页面会自动读取
- * - 每个库房可单独定制库内网格（grid），未配置则用厂区默认 grid
+ * 库内布局采用「灵活布局」：每个库房可有不同的分区与排数，且每一排的库位数可不同。
+ *   layout: [ { zone:'A', rows:[8,8,6] }, { zone:'B', rows:[10,8] }, ... ]
+ *   - zone：分区名；rows：该区从第 1 排起，每一排的库位数（长度=排数，元素=该排库位数）
+ * 未配置 layout 时，回退到统一网格 grid（兼容老配置）。
  * 坐标系：x 向右、z 向后，单位米。
  */
 
-const STORAGE_KEY = 'invmap_park_config_v1';
+const STORAGE_KEY = 'invmap_park_config_v2';
 
 export const DEFAULT_PARK = {
   parkSize: { width: 340, depth: 280 },
@@ -14,19 +15,19 @@ export const DEFAULT_PARK = {
   exit: { id: 'GATE_OUT', name: '出门口', x: -100, z: 120 },
   warehouses: [
     { id: 'WH01', name: '1号库', x: -90, z: 40, width: 64, depth: 36, color: 0x8aa0b8, entrance: { x: -90, z: 58 },
-      goods: '热轧卷板', stackType: 'coil' },
+      goods: '热轧卷板', stackType: 'coil', layout: [{ zone: 'A', rows: [6, 8] }, { zone: 'B', rows: [8, 8] }, { zone: 'C', rows: [6, 6] }] },
     { id: 'WH02', name: '2号库', x: 0, z: 40, width: 64, depth: 36, color: 0x8aa0b8, entrance: { x: 0, z: 58 },
-      goods: '镀锌板卷', stackType: 'coil' },
+      goods: '镀锌板卷', stackType: 'coil', layout: [{ zone: 'A', rows: [8, 8] }, { zone: 'B', rows: [6, 5, 6] }, { zone: 'C', rows: [8] }] },
     { id: 'WH03', name: '3号库', x: 90, z: 40, width: 64, depth: 36, color: 0x8aa0b8, entrance: { x: 90, z: 58 },
-      goods: '螺纹钢/线材', stackType: 'bar' },
+      goods: '螺纹钢/线材', stackType: 'bar', layout: [{ zone: 'A', rows: [8, 8, 6] }, { zone: 'B', rows: [10, 8] }, { zone: 'C', rows: [6, 6, 6, 6] }] },
     { id: 'WH04', name: '4号库', x: -90, z: -60, width: 64, depth: 36, color: 0x8aa0b8, entrance: { x: -90, z: -42 },
-      goods: '型钢', stackType: 'bar' },
+      goods: '型钢', stackType: 'bar', layout: [{ zone: 'A', rows: [8] }, { zone: 'B', rows: [8, 8] }, { zone: 'C', rows: [4, 4, 4, 4, 4, 4] }] },
     { id: 'WH05', name: '5号库', x: 0, z: -60, width: 64, depth: 36, color: 0x8aa0b8, entrance: { x: 0, z: -42 },
-      goods: '中厚板', stackType: 'plate' },
+      goods: '中厚板', stackType: 'plate', layout: [{ zone: 'A', rows: [6, 6] }, { zone: 'B', rows: [8, 8, 8, 8, 8] }, { zone: 'C', rows: [6] }] },
     { id: 'WH06', name: '6号库', x: 90, z: -60, width: 64, depth: 36, color: 0x8aa0b8, entrance: { x: 90, z: -42 },
-      goods: '型钢/圆钢', stackType: 'bar' }
+      goods: '型钢/圆钢', stackType: 'bar', layout: [{ zone: 'A', rows: [8, 8, 8] }, { zone: 'B', rows: [6, 6] }, { zone: 'C', rows: [6] }] }
   ],
-  // 库内库位网格规格（区 / 每区排数 / 每排位数），库房可单独覆盖
+  // 新库房默认网格（仅当库房未单独配置 layout 时回退使用）
   grid: { zones: ['A', 'B', 'C'], rowsPerZone: 6, colsPerRow: 8 }
 };
 
@@ -58,39 +59,38 @@ export function loadConfig() {
   }
 }
 
-// 模块级"当前生效配置"。各渲染/规划模块通过 getter 读取，便于编辑器实时预览。
 let active = loadConfig();
 
 export function getConfig() { return active; }
 export function getPark() { return active.PARK; }
 export function getRoads() { return active.ROADS; }
 
-/** 设置当前生效配置（仅内存，用于实时预览） */
 export function setActiveConfig(cfg) {
   active = { PARK: cfg.PARK, ROADS: cfg.ROADS || clone(DEFAULT_ROADS) };
   return active;
 }
-
-/** 保存配置到 localStorage 并生效 */
 export function saveConfig(cfg) {
   const data = { PARK: cfg.PARK, ROADS: cfg.ROADS || clone(DEFAULT_ROADS) };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   active = data;
   return active;
 }
-
-/** 恢复默认配置 */
 export function resetConfig() {
   localStorage.removeItem(STORAGE_KEY);
   active = { PARK: clone(DEFAULT_PARK), ROADS: clone(DEFAULT_ROADS) };
   return active;
 }
+export function defaults() { return { PARK: clone(DEFAULT_PARK), ROADS: clone(DEFAULT_ROADS) }; }
 
-export function defaults() {
-  return { PARK: clone(DEFAULT_PARK), ROADS: clone(DEFAULT_ROADS) };
-}
-
-/** 取库房的库内网格（库房可覆盖，否则用厂区默认） */
-export function gridOf(wh) {
-  return (wh && wh.grid && Array.isArray(wh.grid.zones)) ? wh.grid : active.PARK.grid;
+/**
+ * 取库房的灵活库内布局：[{zone, rows:[每排库位数]}]。
+ * 优先用库房自带 layout；否则由统一网格 grid 推导（每排库位数相同）。
+ */
+export function layoutOf(wh) {
+  if (wh && Array.isArray(wh.layout) && wh.layout.length) {
+    return wh.layout.map((z) => ({ zone: z.zone, rows: (z.rows || []).map((n) => Math.max(1, n | 0)) }))
+      .filter((z) => z.rows.length);
+  }
+  const g = (wh && wh.grid && Array.isArray(wh.grid.zones)) ? wh.grid : active.PARK.grid;
+  return g.zones.map((zone) => ({ zone, rows: Array(g.rowsPerZone).fill(g.colsPerRow) }));
 }

@@ -122,14 +122,18 @@ GET /api/warehouses
         "x": 90, "z": 40, "width": 64, "depth": 36,
         "entrance": { "x": 90, "z": 58 },
         "stackType": "bar",
-        "grid": { "zones": ["A","B","C"], "rowsPerZone": 6, "colsPerRow": 8 }
+        "layout": [
+          { "zone": "A", "rows": [8, 8, 6] },
+          { "zone": "B", "rows": [10, 8] },
+          { "zone": "C", "rows": [6, 6, 6, 6] }
+        ]
       }
     ]
   }
 }
 ```
 
-> `roads` + 各库 `entrance` 即**行车路线规划的输入**（见下方「路线如何生成」）。`grid` 决定库内库位编码到 3D 坐标的换算，库房可单独覆盖。
+> `roads` + 各库 `entrance` 即**行车路线规划的输入**（见下方「路线如何生成」）。\n> `layout` 描述**灵活库内布局**：每个分区一项，`rows` 数组的长度=该区排数，元素=**该排的库位数**——因此不同库房排数不同、同库不同排的库位数也可不同。未提供 `layout` 时回退到统一网格 `grid`。
 
 ## 3. 库位坐标映射（InvMap 内部维护，可选由 ERP 提供）
 
