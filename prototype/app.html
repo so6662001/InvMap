@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>我的提货 · 厂区导航</title>
+  <link rel="stylesheet" href="./css/style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./js/vendor/three/three.module.js",
+      "three/addons/": "./js/vendor/three/addons/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="logo-dot"></span>
+      <strong>InvMap 提货导航</strong>
+      <span id="driver" class="driver"></span>
+    </div>
+    <div class="summary" id="summary"></div>
+    <div class="topbar-right">
+      <button id="printAllBtn" class="ghost-btn">🖨 打印全部</button>
+      <button id="logoutBtn" class="ghost-btn">退出</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- 左侧：提单列表 -->
+    <aside class="panel orders-panel">
+      <div class="panel-head">
+        <h2>我的提单</h2>
+        <button id="showAllBtn" class="link-btn">全部展示</button>
+      </div>
+      <div id="orderList" class="order-list"></div>
+    </aside>
+
+    <!-- 中部：3D 导航 -->
+    <section class="stage">
+      <div id="viewport" class="viewport"></div>
+      <div class="stage-tools">
+        <button data-view="reset" class="tool-btn">重置视角</button>
+        <button data-view="top" class="tool-btn">俯视全景</button>
+      </div>
+      <div id="loading" class="loading">正在加载厂区 3D…</div>
+      <div class="legend">
+        <span><i style="background:#27ae60"></i>大门/入口</span>
+        <span><i style="background:#ffd166"></i>提货路线</span>
+        <span><i style="background:#ff3b30"></i>选中库位</span>
+      </div>
+    </section>
+
+    <!-- 右侧：提货顺序 + 详情 -->
+    <aside class="panel detail-panel">
+      <div class="panel-head"><h2>推荐提货顺序</h2></div>
+      <div id="routeInfo" class="route-info"></div>
+      <ol id="routeSteps" class="route-steps"></ol>
+      <div class="panel-head"><h2>选中提单</h2></div>
+      <div id="detail" class="detail-box">点击左侧某张提单查看详情，并在 3D 图上以红色高亮其库位。</div>
+    </aside>
+  </main>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
