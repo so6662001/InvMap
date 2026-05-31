@@ -186,3 +186,20 @@ X-Api-Key: <配置的密钥>          # 头名由 invmap.auth.header 配置，�
 ## ERP 数据源模式
 
 `invmap.erp.mode=mock`（默认，内置演示）或 `http`（对接真实 ERP）。http 模式配置：`INVMAP_ERP_BASEURL`、`INVMAP_ERP_ORDERS_PATH`、`INVMAP_ERP_AUTH_HEADER`、`INVMAP_ERP_AUTH_TOKEN`。字段映射在 `HttpErpService` 中按贵司 ERP 实际字段调整（已用容错读取，附常见别名）。
+
+
+## 结算单接口
+
+```
+GET /api/settlement?code={提货码或提货单号}
+```
+`code` 支持「提货码」或「提货单号」（扫码枪/手动输入）。响应 `data`：
+```json
+{ "settleNo":"JS20260531001","billNo":"TD20260531001","customer":"中创钢贸","pickupCode":"8821",
+  "time":"...","operator":"...","items":[{"goodsName":"...","spec":"...","weight":26.5,"weightUnit":"吨","pieces":5,"pieceUnit":"捆","warehouseName":"3号库","locationCode":"C-04-03"}],
+  "totalWeight":54.5, "fees":[{"name":"仓储费","amount":1362.5},{"name":"装卸费","amount":981.0},{"name":"过磅费","amount":30.0}],
+  "totalAmount":2373.5, "remark":"..." }
+```
+状态码：`0` 成功；`1003` 未查询到该码/单号。http 模式映射见 `HttpErpService#getSettlement`，路径由 `invmap.erp.settlement-path` 配置。
+
+> 打印支持 **A4 一式两份**：同一页上下各半张打印两联（第一联客户存执 / 第二联仓库存根），中间虚线可裁切。
