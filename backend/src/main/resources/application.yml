@@ -1,6 +1,5 @@
 server:
   port: 8080
-  # 终端可改为本机端口；前端打包后由本服务一并托管
 spring:
   application:
     name: invmap-backend
@@ -9,7 +8,22 @@ spring:
       static-locations: classpath:/static/
 
 invmap:
-  # 配置持久化文件（park/roads）。终端本地可写目录。
   config-file: ${INVMAP_CONFIG_FILE:./data/park-config.json}
-  # 跨域允许来源（前端开发服务器）。生产由后端同源托管可留空。
   cors-allowed-origins: "*"
+
+  # 接口鉴权（API-Key / Token）。终端在请求头携带；前端用 VITE_API_KEY 注入。
+  auth:
+    enabled: ${INVMAP_AUTH_ENABLED:false}
+    header: ${INVMAP_AUTH_HEADER:X-Api-Key}
+    api-key: ${INVMAP_API_KEY:change-me-dev-key}
+
+  # ERP 数据源：mock(内置演示) | http(对接真实 ERP)
+  erp:
+    mode: ${INVMAP_ERP_MODE:mock}
+    base-url: ${INVMAP_ERP_BASEURL:http://erp.example.com}
+    orders-path: ${INVMAP_ERP_ORDERS_PATH:/open/pickup/orders}
+    # 认证头（如 Authorization: Bearer xxx 或 X-Api-Key: xxx）
+    auth-header: ${INVMAP_ERP_AUTH_HEADER:Authorization}
+    auth-token: ${INVMAP_ERP_AUTH_TOKEN:}
+    connect-timeout-ms: 3000
+    read-timeout-ms: 5000
