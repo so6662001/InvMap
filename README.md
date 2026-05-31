@@ -16,6 +16,8 @@
 ├── prototype/              # 可运行的高保真交互原型
 │   ├── index.html          # 手机号录入 / 登录页
 │   ├── app.html            # 主页面：提单列表 + 3D 导航 + 路线 + 打印
+│   ├── serve.js            # 零依赖本地静态服务器（仅需 Node）
+│   ├── start-windows.bat   # Windows 双击启动（自动识别 Node / Python）
 │   ├── css/style.css
 │   └── js/
 │       ├── mockErp.js      # 模拟 ERP 接口（联调时替换为真实 fetch）
@@ -29,15 +31,37 @@
 
 ## 运行原型
 
-需要通过 HTTP 服务访问（ES Module 不支持 `file://`）。在 `prototype/` 目录下任选其一：
+> ⚠️ 必须通过 **HTTP** 访问，不能用 `file://` 直接双击打开 `app.html`（浏览器会拦截 ES 模块，导致一直停在"正在加载"）。
+
+### Windows（最省事）
+
+直接双击 `prototype/start-windows.bat`，它会自动识别本机的 Node 或 Python 来启动，并打开浏览器。
+
+如果双击没反应，说明本机既没有 Node 也没有 Python，任选其一安装后再双击：
+- 安装 Node.js：<https://nodejs.org/>
+- 安装 Python：<https://www.python.org/downloads/>（安装时勾选 **Add Python to PATH**）
+
+> 提示：Windows 上的 `python3` 往往不可用，正确命令通常是 `py -m http.server 8123` 或 `python -m http.server 8123`。装了 Python 仍报 "Python was not found" 时，多半是被"应用执行别名"拦截，可在「设置 → 应用 → 高级应用设置 → 应用执行别名」里关闭 python 的别名，或直接改用下面的 Node 方式。
+
+### 通用方式（任意系统，按你已安装的工具任选其一）
 
 ```bash
 cd prototype
-python3 -m http.server 8123
-# 或： npx serve .
+
+# 1) 有 Node.js（推荐，零依赖、无需联网）
+node serve.js            # 默认 8123 端口，可改： node serve.js 8124
+
+# 2) 有 Node.js，想用现成工具
+npx serve .              # 或  npx http-server -p 8123
+
+# 3) 有 Python 3
+python -m http.server 8123     # Windows 亦可用 py -m http.server 8123
+python3 -m http.server 8123    # macOS / Linux
+
+# 4) 用 VS Code：安装 “Live Server” 扩展，右键 index.html → Open with Live Server
 ```
 
-浏览器打开 `http://localhost:8123/`，输入演示手机号：
+启动后浏览器打开 `http://localhost:8123/`，输入演示手机号：
 
 | 手机号 | 场景 |
 | --- | --- |
@@ -45,7 +69,7 @@ python3 -m http.server 8123
 | `13900000000` | 单库单单（最简场景） |
 | `13700000000` | 含冻结提单（不可提、不计入路线） |
 
-> 3D 依赖 `prototype/js/vendor/three/`（已内置，无需联网）。若所在环境不支持 WebGL，页面会自动降级：提单列表与路线信息照常显示。
+> 3D 依赖 `prototype/js/vendor/three/`（已内置，无需联网）。若环境不支持 WebGL，页面会自动降级：提单列表与路线信息照常显示。任何加载失败都会在页面上给出明确提示。
 
 ## 功能一览（对应需求）
 
