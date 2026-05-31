@@ -7,7 +7,7 @@
     "warehouses": [
       { "id": "WH01", "name": "1号库", "x": -90, "z": 40, "width": 64, "depth": 36, "color": 9085112, "entrance": { "x": -90, "z": 58 }, "goods": "热轧卷板", "stackType": "coil", "layout": [{ "zone": "A", "rows": [6, 8] }, { "zone": "B", "rows": [8, 8] }, { "zone": "C", "rows": [6, 6] }] },
       { "id": "WH02", "name": "2号库", "x": 0, "z": 40, "width": 64, "depth": 36, "color": 9085112, "entrance": { "x": 0, "z": 58 }, "goods": "镀锌板卷", "stackType": "coil", "layout": [{ "zone": "A", "rows": [8, 8] }, { "zone": "B", "rows": [6, 5, 6] }, { "zone": "C", "rows": [8] }] },
-      { "id": "WH03", "name": "3号库", "x": 90, "z": 40, "width": 64, "depth": 36, "color": 9085112, "entrance": { "x": 90, "z": 58 }, "goods": "螺纹钢/线材", "stackType": "bar", "layout": [{ "zone": "A", "rows": [8, 8, 6] }, { "zone": "B", "rows": [10, 8] }, { "zone": "C", "rows": [6, 6, 6, 6] }] },
+      { "id": "WH03", "name": "3号库", "x": 90, "z": 40, "width": 64, "depth": 36, "color": 9085112, "entrance": { "x": 78, "z": 58 }, "exit": { "x": 102, "z": 58 }, "goods": "螺纹钢/线材", "stackType": "bar", "layout": [{ "zone": "A", "rows": [8, 8, 6] }, { "zone": "B", "rows": [10, 8] }, { "zone": "C", "rows": [6, 6, 6, 6] }] },
       { "id": "WH04", "name": "4号库", "x": -90, "z": -60, "width": 64, "depth": 36, "color": 9085112, "entrance": { "x": -90, "z": -42 }, "goods": "型钢", "stackType": "bar", "layout": [{ "zone": "A", "rows": [8] }, { "zone": "B", "rows": [8, 8] }, { "zone": "C", "rows": [4, 4, 4, 4, 4, 4] }] },
       { "id": "WH05", "name": "5号库", "x": 0, "z": -60, "width": 64, "depth": 36, "color": 9085112, "entrance": { "x": 0, "z": -42 }, "goods": "中厚板", "stackType": "plate", "layout": [{ "zone": "A", "rows": [6, 6] }, { "zone": "B", "rows": [8, 8, 8, 8, 8] }, { "zone": "C", "rows": [6] }] },
       { "id": "WH06", "name": "6号库", "x": 90, "z": -60, "width": 64, "depth": 36, "color": 9085112, "entrance": { "x": 90, "z": -42 }, "goods": "型钢/圆钢", "stackType": "bar", "layout": [{ "zone": "A", "rows": [8, 8, 8] }, { "zone": "B", "rows": [6, 6] }, { "zone": "C", "rows": [6] }] }
@@ -18,11 +18,11 @@
     "horizontals": [
       { "z": 80, "x0": -150, "x1": 150, "speed": 25 },
       { "z": -20, "x0": -150, "x1": 150, "speed": 15, "congestion": 1.6 },
-      { "z": -100, "x0": -150, "x1": 150, "speed": 20, "oneway": 1 }
+      { "z": -100, "x0": -150, "x1": 150, "speed": 20, "oneway": 1, "noEntry": "08:00-09:00" }
     ],
     "verticals": [
       { "x": -140, "z0": -100, "z1": 130, "speed": 20 },
-      { "x": 140, "z0": -100, "z1": 80, "speed": 20, "maxHeight": 3.5, "maxWeight": 45 }
+      { "x": 140, "z0": -100, "z1": 80, "speed": 20, "maxHeight": 3.5, "maxWeight": 45, "maxWidth": 2.6, "minTurnRadius": 14 }
     ]
   }
 }

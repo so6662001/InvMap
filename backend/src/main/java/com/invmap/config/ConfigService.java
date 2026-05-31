@@ -31,9 +31,10 @@ public class ConfigService {
     private volatile JsonNode current;
 
     public static final List<Vehicle> VEHICLE_PRESETS = List.of(
-            new Vehicle("flat", "平板车", 3.0, 30),
-            new Vehicle("trailer", "半挂车", 4.0, 49),
-            new Vehicle("small", "小货车", 2.8, 12)
+            //          id         name      高    总重  宽     长   转弯  载货上限
+            new Vehicle("flat",    "平板车", 3.0, 30, 2.50, 13, 12, 25),
+            new Vehicle("trailer", "半挂车", 4.0, 49, 2.55, 16, 16, 35),
+            new Vehicle("small",   "小货车", 2.8, 12, 2.20, 7,  8,  8)
     );
 
     @PostConstruct
