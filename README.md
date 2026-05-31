@@ -2,78 +2,68 @@
 
 **钢铁现货仓库 · 驾驶员提货导航**
 
-司机到办公室后，仅需录入手机号，即可查看名下全部待提提单（含仓库与库位），在厂区 **3D 图**上以红色高亮库位，自动规划"大门→各库→出门"的提货顺序与行车路线，并一键打印提货单。**点击某张提单可直接进入该仓库的库内 3D 图**精确定位库位。仓库布局支持**自定义配置**。提单数据来自 ERP（通过 API 获取）。
+司机到办公室/自助终端，录入手机号即可看到名下全部待提提单（提单含多商品、可跨多个仓库/库位），在厂区 **3D 图**上定位库位、查看自动规划的提货顺序与行车路线（含单行道/限高限重/必过磅房/距离·时间最优等通行规则），点击商品进入**库内 3D 图**精确定位，并一键打印提货单。提单数据来自 **ERP**（API 对接）；厂区/库房/道路布局可在「仓库配置」中可视化定制。
 
----
+## 技术栈与工程结构
 
-## 目录结构
+按实际生产技术栈实现：**Java(Spring Boot) 后端 + Vue3(Vite + Three.js) 前端**，可部署到 **Windows / Android 自助终端**。
 
 ```
 .
-├── docs/
-│   ├── PRD.md              # 产品需求文档
-│   └── API.md              # 与 ERP 的接口契约
-├── prototype/              # 可运行的高保真交互原型
-│   ├── index.html          # 手机号录入 / 登录页
-│   ├── app.html            # 主页面：提单列表 + 3D 导航 + 路线 + 打印
-│   ├── config.html         # 仓库配置编辑器（定制厂区/库房，实时 3D 预览）
-│   ├── serve.js            # 零依赖本地静态服务器（仅需 Node）
-│   ├── start-windows.bat   # Windows 双击启动（自动识别 Node / Python）
-│   ├── css/style.css
-│   └── js/
-│       ├── warehouseConfig.js # 厂区/库房配置 + 本地持久化（可定制）
-│       ├── mockErp.js      # 模拟 ERP 接口（联调时替换为真实 fetch）
-│       ├── warehouse3d.js  # Three.js：厂区外观 + 库内 3D + 路线/高亮
-│       ├── route.js        # 路网建图 + Dijkstra + 最近邻路线规划
-│       ├── config.js       # 仓库配置编辑器逻辑
-│       ├── print.js        # 打印提货单
-│       ├── app.js          # 主逻辑
-│       └── vendor/three/   # 本地内置的 Three.js（离线可用）
-└── README.md
+├── backend/      Spring Boot 后端（Java 21 + Maven）
+│   ├── 提单接口 /api/pickup/orders（对接 ERP，含模拟实现 MockErpService）
+│   ├── 配置接口 /api/config、/api/vehicles（厂区/库房/道路/车型）
+│   └── 同源托管前端构建产物（单 jar 即可在终端运行）
+├── frontend/     Vue3 + Vite + Three.js 前端
+│   ├── src/views  登录 / 导航(3D) / 仓库配置
+│   ├── src/lib    geo(布局/规则) · route(路线规划) · warehouse3d(3D) · print
+│   ├── capacitor.config.json  Android 打包
+│   └── electron/main.cjs       Windows Kiosk 外壳
+├── docs/         PRD.md（产品需求）· API.md（ERP 接口契约）· DEPLOY.md（终端部署）
+└── prototype/    早期纯静态原型（保留作参考，非生产代码）
 ```
 
-## 运行原型
+## 快速开始（开发）
 
-> ⚠️ 必须通过 **HTTP** 访问，不能用 `file://` 直接双击打开 `app.html`（浏览器会拦截 ES 模块）。
+需要 JDK 21、Node 18+、Maven（或用各自 IDE）。
 
-### Windows（最省事）
-双击 `prototype/start-windows.bat`，它会自动识别本机 Node 或 Python 启动并打开浏览器。没装则任选其一安装（[Node.js](https://nodejs.org/) 或 [Python](https://www.python.org/downloads/)）。
-
-### 通用方式（任选其一）
 ```bash
-cd prototype
-node serve.js                 # 有 Node（推荐，零依赖、无需联网）
-# 或： npx serve .  /  python -m http.server 8123  /  py -m http.server 8123
+# 1) 启动后端（:8080）
+cd backend && mvn spring-boot:run
+
+# 2) 启动前端（:5173，已把 /api 代理到 8080）
+cd frontend && npm install && npm run dev
+# 浏览器打开 http://localhost:5173
 ```
-打开 `http://localhost:8123/`，输入演示手机号：
 
-| 手机号 | 场景 |
-| --- | --- |
-| `13800000000` | 多库多单（4 张提单 / 4 个仓库，主演示） |
-| `13900000000` | 单库单单（最简场景） |
-| `13700000000` | 含冻结提单 |
+演示手机号：`13800000000`（多库多单·平板车）/ `13900000000`（单库多明细·小货车）/ `13700000000`（含冻结单·半挂车）。
 
-## 功能一览（对应需求）
+## 一体化构建（单 jar，终端首选）
 
-- **手机号录入**：大号数字键盘，11 位校验。
-- **提单列表**：货物/规格/重量件数/**仓库 + 库位**/状态/提货码。
-- **3D 厂区导航**：库房、库内库位网格、大门、道路；默认展示全部库位（不同颜色 + 序号）。
-- **点击提单进入库内 3D**：点击某张提单 → **进入该仓库的库内视图**（分区 A/B/C、排位货架、按货品类型区分卷板/型钢/板材），目标库位以**红色**立柱+光圈高亮、镜头自动聚焦；点「← 返回厂区总览」回到全局视图。
-- **提货顺序与路线**：自动规划"大门 → 各库 → 出门"，3D 中带箭头路线 + 序号；右侧步骤条可点击在厂区图中定位。
-- **仓库定制**：`config.html` 可视化编辑厂区尺寸、大门/出门、默认库内网格，以及每个库房的名称/位置/尺寸/颜色/入口/货品/堆垛类型，**实时 3D 预览**，支持保存（localStorage）、恢复默认、导出/导入 JSON。
-- **打印提货单**：可打印单张或全部。
-- **ERP 对接**：数据来自 `mockErp.js`（按 `docs/API.md` 契约），联调替换为真实接口即可。
+把前端构建产物交给后端同源托管，产出一个可执行 jar：
 
-## 仓库定制
+```bash
+cd frontend && npm install && npm run build         # 产出 frontend/dist
+cp -r dist/* ../backend/src/main/resources/static/   # 交给后端托管
+cd ../backend && mvn -DskipTests package              # 产出 backend/target/invmap-backend.jar
+java -jar target/invmap-backend.jar                   # 访问 http://localhost:8080
+```
 
-进入主页面右上角「⚙ 仓库配置」或直接打开 `config.html`：
-- 增删库房、调整位置/尺寸/颜色/入口、设置库内网格（区数、每区排数、每排库位数）、选择堆垛类型；
-- 「应用预览」实时查看 3D 效果，「保存并应用」后返回提货页即生效；
-- 可「导出 JSON」沉淀为标准配置，或「导入 JSON」快速套用其它厂区。
-- 配置保存在浏览器 localStorage；正式环境可改为由后台/ERP 下发（见 `warehouseConfig.js` 与 `docs/API.md`）。
+> 生产/CI 建议用 `frontend-maven-plugin` 自动执行上面的前端构建与拷贝（见 `backend/README.md`）。
 
-## 与 ERP 联调
+## 部署到自助终端
 
-将 `prototype/js/mockErp.js` 的 `fetchOrders` 替换为对真实 ERP 的 `fetch`，返回结构对齐 `docs/API.md`；库位编码 → 3D 坐标由 InvMap 维护（见 `warehouse3d.js` 的 `locationToWorld`/`_buildInterior` 与 `warehouseConfig.js`）。
+- **Windows**：装 JRE21 跑 `invmap-backend.jar`（开机自启），前台用 **Electron Kiosk**（`frontend/electron/main.cjs`）或 Chrome `--kiosk http://localhost:8080` 全屏；亦可后端部署在服务器，终端只跑 Kiosk 指向服务器地址。
+- **Android**：用 **Capacitor** 把前端打包为 APK（`frontend/capacitor.config.json`），后端部署在服务器，APK 通过 `VITE_API_BASE` 指向后端。
 
-详见 [`docs/PRD.md`](docs/PRD.md) 与 [`docs/API.md`](docs/API.md)。
+详细步骤见 [`docs/DEPLOY.md`](docs/DEPLOY.md)。接口契约见 [`docs/API.md`](docs/API.md)，产品需求见 [`docs/PRD.md`](docs/PRD.md)。
+
+## 已实现能力
+
+- 手机号登录；提单列表（提单含多条商品明细，各自仓库+库位）。
+- 厂区 3D 总览：库房/道路/大门/磅房、库位标记、提货顺序与带箭头行车路线。
+- 点击提单/商品进入**库内 3D**（灵活布局：每区排数不同、每排库位数也可不同），目标库位红色高亮。
+- 通行规则：①单行道方向 ②限高/限重按车型过滤 ③进出门必过磅房 ④距离最短/时间最短(含拥堵)。
+- 仓库配置编辑器：厂区/库房/道路/磅房/库内布局可视化定制，实时 3D 预览，保存/恢复默认/导入导出。
+- 打印提货单（多明细）。
+- ERP 对接：替换 `MockErpService` 为真实实现即可。
