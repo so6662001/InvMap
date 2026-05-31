@@ -223,3 +223,11 @@ a { color: inherit; }
 .road-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 8px; }
 .road-row .cfg-grid { grid-template-columns: 1fr 1fr 1fr; flex: 1; }
 .road-row .mini-print { margin-bottom: 2px; }
+
+/* ===== 通行条件 / 路线提示 ===== */
+.cond-bar { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 14px 12px; align-items: center; }
+.cond-bar label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.cond-bar select { background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 6px 8px; font-size: 13px; }
+.cond-bar label.chk { color: var(--text); }
+.cond-bar .cond-veh { width: 100%; font-size: 12px; color: var(--muted); }
+.route-warn { margin-top: 8px; padding: 8px 10px; background: rgba(242,153,74,.15); border: 1px solid rgba(242,153,74,.4); border-radius: 8px; color: #ffce9e; font-size: 12px; }

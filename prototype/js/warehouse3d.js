@@ -106,12 +106,22 @@ export class Warehouse3D {
     const { width, depth } = PARK.parkSize;
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), new THREE.MeshStandardMaterial({ color: 0x1b2a3d }));
     ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; this.parkGroup.add(ground);
-    const roadMat = new THREE.MeshStandardMaterial({ color: 0x33425a }); const ROAD_W = 14;
-    ROADS.horizontals.forEach((r) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.abs(r.x1 - r.x0), ROAD_W), roadMat); m.rotation.x = -Math.PI / 2; m.position.set((r.x0 + r.x1) / 2, 0.05, r.z); this.parkGroup.add(m); });
-    ROADS.verticals.forEach((r) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_W, Math.abs(r.z1 - r.z0)), roadMat); m.rotation.x = -Math.PI / 2; m.position.set(r.x, 0.05, (r.z0 + r.z1) / 2); this.parkGroup.add(m); });
+    const ROAD_W = 14;
+    const roadColor = (r) => r.closed ? 0x5a2330 : (r.maxHeight || r.maxWeight) ? 0x6b5a2e : 0x33425a;
+    ROADS.horizontals.forEach((r) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.abs(r.x1 - r.x0), ROAD_W), new THREE.MeshStandardMaterial({ color: roadColor(r) }));
+      m.rotation.x = -Math.PI / 2; m.position.set((r.x0 + r.x1) / 2, 0.05, r.z); this.parkGroup.add(m);
+      this._roadDecor(r, true);
+    });
+    ROADS.verticals.forEach((r) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_W, Math.abs(r.z1 - r.z0)), new THREE.MeshStandardMaterial({ color: roadColor(r) }));
+      m.rotation.x = -Math.PI / 2; m.position.set(r.x, 0.05, (r.z0 + r.z1) / 2); this.parkGroup.add(m);
+      this._roadDecor(r, false);
+    });
     PARK.warehouses.forEach((wh) => this._buildWarehouse(wh));
     this._buildGate(PARK.gate, '🚪 ' + PARK.gate.name, 0x27ae60);
     this._buildGate(PARK.exit, PARK.exit.name, 0xeb5757);
+    if (PARK.weighbridge) this._buildWeighbridge(PARK.weighbridge);
   }
 
   _buildWarehouse(wh) {
@@ -153,6 +163,39 @@ export class Warehouse3D {
     const post = new THREE.Mesh(new THREE.BoxGeometry(10, 12, 10), new THREE.MeshStandardMaterial({ color }));
     post.position.set(g.x, 6, g.z); post.castShadow = true; this.parkGroup.add(post);
     const label = makeTextSprite(text, { fontSize: 44, bg: 'rgba(20,40,40,0.9)' }); label.position.set(g.x, 26, g.z); this.parkGroup.add(label);
+  }
+
+  // 道路装饰：单行箭头 + 限高/限重/封闭标牌
+  _roadDecor(r, horizontal) {
+    const mid = horizontal ? { x: (r.x0 + r.x1) / 2, z: r.z } : { x: r.x, z: (r.z0 + r.z1) / 2 };
+    const len = horizontal ? Math.abs(r.x1 - r.x0) : Math.abs(r.z1 - r.z0);
+    if (r.oneway === 1 || r.oneway === -1) {
+      const n = Math.max(2, Math.floor(len / 50));
+      for (let i = 1; i <= n; i++) {
+        const t = i / (n + 1);
+        const px = horizontal ? (r.x0 + (r.x1 - r.x0) * t) : r.x;
+        const pz = horizontal ? r.z : (r.z0 + (r.z1 - r.z0) * t);
+        const arrow = new THREE.Mesh(new THREE.ConeGeometry(2.2, 6, 12), new THREE.MeshStandardMaterial({ color: 0x9bd1ff }));
+        arrow.position.set(px, 2.5, pz);
+        const dir = r.oneway; // 1:+ ; -1:-
+        if (horizontal) arrow.rotation.z = -Math.PI / 2 * dir; else arrow.rotation.x = Math.PI / 2 * dir;
+        this.parkGroup.add(arrow);
+      }
+    }
+    const tags = [];
+    if (r.maxHeight) tags.push('限高' + r.maxHeight + 'm');
+    if (r.maxWeight) tags.push('限重' + r.maxWeight + 't');
+    if (r.closed) tags.push('封闭');
+    if (tags.length) { const s = makeTextSprite(tags.join(' '), { fontSize: 30, bg: 'rgba(140,90,20,0.95)' }); s.position.set(mid.x, 12, mid.z); this.parkGroup.add(s); }
+  }
+
+  _buildWeighbridge(wb) {
+    const base = new THREE.Mesh(new THREE.BoxGeometry(20, 2, 14), new THREE.MeshStandardMaterial({ color: 0x4a6fa5 }));
+    base.position.set(wb.x, 1, wb.z); this.parkGroup.add(base);
+    const post = new THREE.Mesh(new THREE.BoxGeometry(6, 14, 6), new THREE.MeshStandardMaterial({ color: 0x2f80ed }));
+    post.position.set(wb.x, 8, wb.z); post.castShadow = true; this.parkGroup.add(post);
+    const label = makeTextSprite('⚖ ' + wb.name, { fontSize: 40, bg: 'rgba(20,40,80,0.95)' });
+    label.position.set(wb.x, 24, wb.z); this.parkGroup.add(label);
   }
 
   // ===== 明细库位标记 =====
