@@ -179,3 +179,33 @@ a { color: inherit; }
   .config-layout { grid-template-columns: 1fr; grid-template-rows: auto 60vh; height: auto; }
   .summary { gap: 12px; }
 }
+
+/* ===== 多商品提单列表 ===== */
+.order-card { padding: 0; overflow: hidden; }
+.oc-head { padding: 12px; cursor: pointer; }
+.oc-head:hover { background: rgba(47,128,237,.08); }
+.oc-bill { font-family: monospace; font-size: 14px; color: #fff; font-weight: 700; }
+.oc-sub { color: var(--muted); font-size: 12px; margin-top: 6px; }
+.oc-items { display: grid; gap: 6px; padding: 0 10px 8px; }
+.item-row { display: flex; flex-direction: column; gap: 6px; padding: 9px 10px; border-radius: 9px; background: var(--bg); border: 1px solid transparent; cursor: pointer; }
+.item-row:hover { border-color: var(--accent); }
+.item-row.active { border-color: var(--danger); box-shadow: 0 0 0 2px rgba(255,59,48,.22); }
+.item-row.frozen { opacity: .5; cursor: default; }
+.ir-main { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.ir-goods { font-weight: 600; font-size: 13px; }
+.ir-spec { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.ir-loc { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.ir-loc .seq { width: 18px; height: 18px; border-radius: 50%; background: var(--danger); color: #fff; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+.ir-loc .wh { background: var(--accent); color: #fff; font-size: 11px; padding: 2px 7px; border-radius: 5px; }
+.ir-loc .loc { font-size: 12px; color: var(--text); }
+.oc-foot { display: flex; gap: 8px; padding: 0 12px 12px; }
+.mini-go { font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer; }
+.mini-go:hover { border-color: var(--accent); }
+.step-cnt { margin-left: auto; font-size: 11px; color: var(--muted); }
+.route-help { margin: 0 14px 12px; padding: 10px 12px; background: rgba(47,128,237,.1); border: 1px solid rgba(47,128,237,.25); border-radius: 8px; font-size: 12px; color: #bcd4f5; line-height: 1.7; }
+.route-help strong { color: #fff; }
+.d-sub { margin: 12px 0 8px; font-size: 12px; color: var(--muted); }
+.d-sub b { color: #ffd166; }
+.di-list { display: grid; gap: 6px; margin-bottom: 8px; }
+.di-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 8px 10px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; }
+.di-row b { color: #ffd166; white-space: nowrap; }
