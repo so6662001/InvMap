@@ -217,3 +217,9 @@ a { color: inherit; }
 .layout-tip { font-size: 11px; color: var(--muted); margin: 10px 0 6px; line-height: 1.6; }
 .layout-tip code { background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 4px; }
 .layout-tip b { color: var(--text); }
+
+/* ===== 园区道路编辑 ===== */
+.roads-sub { font-size: 12px; color: var(--muted); margin: 10px 0 6px; font-weight: 600; }
+.road-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 8px; }
+.road-row .cfg-grid { grid-template-columns: 1fr 1fr 1fr; flex: 1; }
+.road-row .mini-print { margin-bottom: 2px; }

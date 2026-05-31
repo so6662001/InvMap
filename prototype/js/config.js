@@ -49,7 +49,7 @@ function field(label, value, onChange, opts = {}) {
   return wrap;
 }
 
-function renderAll() { renderPark(); renderGrid(); renderWarehouses(); }
+function renderAll() { renderPark(); renderGrid(); renderRoads(); renderWarehouses(); }
 
 function renderPark() {
   const c = document.getElementById('parkFields'); c.innerHTML = ''; const P = working.PARK;
@@ -68,6 +68,41 @@ function renderGrid() {
   c.appendChild(field('分区(逗号分隔)', g.zones.join(','), (v) => g.zones = v.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean), { type: 'text' }));
   c.appendChild(field('每区排数', g.rowsPerZone, (v) => g.rowsPerZone = Math.max(1, +v | 0)));
   c.appendChild(field('每排库位数', g.colsPerRow, (v) => g.colsPerRow = Math.max(1, +v | 0)));
+}
+
+function renderRoads() {
+  const c = document.getElementById('roadsFields'); if (!c) return; c.innerHTML = '';
+  const R = working.ROADS; if (!R.horizontals) R.horizontals = []; if (!R.verticals) R.verticals = [];
+  const sub = (t) => { const d = document.createElement('div'); d.className = 'roads-sub'; d.textContent = t; return d; };
+  const roadRow = (fields, onDel) => {
+    const card = document.createElement('div'); card.className = 'road-row';
+    const g = document.createElement('div'); g.className = 'cfg-grid';
+    fields.forEach((f) => g.appendChild(field(f.label, f.value, f.set)));
+    card.appendChild(g);
+    const del = document.createElement('button'); del.className = 'mini-print'; del.textContent = '删除';
+    del.addEventListener('click', onDel); card.appendChild(del);
+    return card;
+  };
+
+  c.appendChild(sub('横向道路（沿 X 方向，位于某个 Z）'));
+  R.horizontals.forEach((r, i) => c.appendChild(roadRow(
+    [{ label: 'Z 位置', value: r.z, set: (v) => r.z = +v },
+     { label: 'X 起点', value: r.x0, set: (v) => r.x0 = +v },
+     { label: 'X 终点', value: r.x1, set: (v) => r.x1 = +v }],
+    () => { R.horizontals.splice(i, 1); renderRoads(); rebuildPreview(); })));
+  const addH = document.createElement('button'); addH.className = 'mini-go'; addH.textContent = '＋ 添加横向道路';
+  addH.addEventListener('click', () => { R.horizontals.push({ z: 0, x0: -150, x1: 150 }); renderRoads(); rebuildPreview(); });
+  c.appendChild(addH);
+
+  c.appendChild(sub('纵向道路（沿 Z 方向，位于某个 X）'));
+  R.verticals.forEach((r, i) => c.appendChild(roadRow(
+    [{ label: 'X 位置', value: r.x, set: (v) => r.x = +v },
+     { label: 'Z 起点', value: r.z0, set: (v) => r.z0 = +v },
+     { label: 'Z 终点', value: r.z1, set: (v) => r.z1 = +v }],
+    () => { R.verticals.splice(i, 1); renderRoads(); rebuildPreview(); })));
+  const addV = document.createElement('button'); addV.className = 'mini-go'; addV.textContent = '＋ 添加纵向道路';
+  addV.addEventListener('click', () => { R.verticals.push({ x: 0, z0: -100, z1: 120 }); renderRoads(); rebuildPreview(); });
+  c.appendChild(addV);
 }
 
 function renderWarehouses() {
