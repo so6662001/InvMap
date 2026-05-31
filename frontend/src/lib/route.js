@@ -1,5 +1,7 @@
 /**
- * 提货路线规划（含通行规则：单行道/限高限重按车型/必过磅房/距离·时间最优）。
+ * 提货路线规划（含通行规则）：
+ *  单行道方向 / 限高·限重·限宽·转弯半径(按车型) / 禁行时段(按时刻) /
+ *  装卸单向动线(库房入口进、出口出) / 进出门必过磅房 / 距离·时间最优。
  * 与框架无关：park/roads 由调用方传入。
  */
 import { roadBlocked } from './geo.js';
@@ -17,19 +19,20 @@ function edgeWeight(len, road, objective) {
 }
 
 function buildGraph(PARK, ROADS, opts) {
-  const { objective, vehicle } = opts;
+  const { objective, vehicle, nowMinutes } = opts;
+  const ctx = { nowMinutes };
   const nodes = new Map(); const adj = new Map();
   const ensure = (x, z) => { const k = key(x, z); if (!nodes.has(k)) { nodes.set(k, { x, z }); adj.set(k, []); } return k; };
   const addEdge = (from, to, w) => adj.get(from).push({ to, w });
 
   const colXs = new Set();
   ROADS.verticals.forEach((v) => colXs.add(v.x));
-  PARK.warehouses.forEach((w) => colXs.add(w.entrance.x));
+  PARK.warehouses.forEach((w) => { colXs.add(w.entrance.x); if (w.exit) colXs.add(w.exit.x); });
   colXs.add(PARK.gate.x); colXs.add(PARK.exit.x);
   if (PARK.weighbridge) colXs.add(PARK.weighbridge.x);
 
   ROADS.horizontals.forEach((h) => {
-    if (roadBlocked(h, vehicle)) return;
+    if (roadBlocked(h, vehicle, ctx)) return;
     const xs = [...colXs].filter((x) => x >= h.x0 && x <= h.x1).sort((a, b) => a - b);
     for (let i = 0; i + 1 < xs.length; i++) {
       const a = ensure(xs[i], h.z), b = ensure(xs[i + 1], h.z);
@@ -38,7 +41,7 @@ function buildGraph(PARK, ROADS, opts) {
     }
   });
   ROADS.verticals.forEach((v) => {
-    if (roadBlocked(v, vehicle)) return;
+    if (roadBlocked(v, vehicle, ctx)) return;
     const zs = ROADS.horizontals.map((h) => h.z).filter((z) => z >= v.z0 && z <= v.z1).sort((a, b) => a - b);
     for (let i = 0; i + 1 < zs.length; i++) {
       const a = ensure(v.x, zs[i]), b = ensure(v.x, zs[i + 1]);
@@ -75,14 +78,15 @@ const pathLength = (path) => { let s = 0; for (let i = 1; i < path.length; i++) 
 
 /**
  * @param {Array} items 待提明细（含 warehouseId）
- * @param {object} options { park, roads, objective, vehicle, requireWeighbridge }
+ * @param {object} options { park, roads, objective, vehicle, requireWeighbridge, nowMinutes }
  */
 export function planRoute(items, options = {}) {
   const PARK = options.park; const ROADS = options.roads;
   const objective = options.objective === 'time' ? 'time' : 'distance';
   const vehicle = options.vehicle || null;
   const requireWB = options.requireWeighbridge !== false;
-  const g = buildGraph(PARK, ROADS, { objective, vehicle });
+  const nowMinutes = (options.nowMinutes != null) ? options.nowMinutes : null;
+  const g = buildGraph(PARK, ROADS, { objective, vehicle, nowMinutes });
 
   const gateK = g.connect(PARK.gate.x, PARK.gate.z);
   const exitK = g.connect(PARK.exit.x, PARK.exit.z);
@@ -92,7 +96,8 @@ export function planRoute(items, options = {}) {
   items.forEach((o) => {
     if (seen.has(o.warehouseId)) return; seen.add(o.warehouseId);
     const wh = PARK.warehouses.find((w) => w.id === o.warehouseId); if (!wh) return;
-    stops.push({ warehouseId: wh.id, warehouseName: wh.name, entrance: wh.entrance, nodeK: g.connect(wh.entrance.x, wh.entrance.z) });
+    const exitPt = wh.exit || wh.entrance; // 装卸单向动线：从入口进、出口出
+    stops.push({ warehouseId: wh.id, warehouseName: wh.name, entrance: wh.entrance, exit: exitPt, entNode: g.connect(wh.entrance.x, wh.entrance.z), exitNode: g.connect(exitPt.x, exitPt.z) });
   });
 
   const legs = []; const order = []; const unreachable = [];
@@ -102,11 +107,11 @@ export function planRoute(items, options = {}) {
   const remaining = [...stops];
   while (remaining.length) {
     let bi = -1, bd = Infinity, bp = null;
-    remaining.forEach((s, i) => { const r = dijkstra(g.adj, g.nodes, curK, s.nodeK); if (r.dist < bd) { bd = r.dist; bi = i; bp = r.path; } });
+    remaining.forEach((s, i) => { const r = dijkstra(g.adj, g.nodes, curK, s.entNode); if (r.dist < bd) { bd = r.dist; bi = i; bp = r.path; } });
     if (bi < 0 || !isFinite(bd)) { remaining.forEach((s) => unreachable.push(s.warehouseName)); break; }
     const next = remaining.splice(bi, 1)[0];
     legs.push({ from: prevName, to: next.warehouseName, path: bp });
-    order.push(next); curK = next.nodeK; prevName = next.warehouseName;
+    order.push(next); curK = next.exitNode; prevName = next.warehouseName; // 从出口离开
   }
 
   if (wbK) {

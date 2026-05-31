@@ -117,6 +117,9 @@ export class Warehouse3D {
     const tags = [];
     if (r.maxHeight) tags.push('限高' + r.maxHeight + 'm');
     if (r.maxWeight) tags.push('限重' + r.maxWeight + 't');
+    if (r.maxWidth) tags.push('限宽' + r.maxWidth + 'm');
+    if (r.minTurnRadius) tags.push('转弯R' + r.minTurnRadius);
+    if (r.noEntry) tags.push('禁行' + r.noEntry);
     if (r.closed) tags.push('封闭');
     if (tags.length) { const s = makeTextSprite(tags.join(' '), { fontSize: 30, bg: 'rgba(140,90,20,0.95)' }); s.position.set(mid.x, 12, mid.z); this.parkGroup.add(s); }
   }
@@ -142,6 +145,12 @@ export class Warehouse3D {
     const label = makeTextSprite(wh.name, { fontSize: 56, bg: 'rgba(20,40,70,0.92)' }); label.position.set(wh.x, wallH + 16, wh.z); group.add(label);
     const ent = new THREE.Mesh(new THREE.ConeGeometry(3.2, 8, 4), new THREE.MeshStandardMaterial({ color: 0x27ae60 }));
     ent.rotation.x = Math.PI; ent.position.set(wh.entrance.x, 6, wh.entrance.z); group.add(ent);
+    if (wh.exit && (wh.exit.x !== wh.entrance.x || wh.exit.z !== wh.entrance.z)) {
+      const ex = new THREE.Mesh(new THREE.ConeGeometry(3.2, 8, 4), new THREE.MeshStandardMaterial({ color: 0xeb5757 }));
+      ex.rotation.x = Math.PI; ex.position.set(wh.exit.x, 6, wh.exit.z); group.add(ex);
+      const exl = makeTextSprite('出口', { fontSize: 28, bg: 'rgba(120,40,40,0.9)' }); exl.position.set(wh.exit.x, 16, wh.exit.z); group.add(exl);
+      const enl = makeTextSprite('入口', { fontSize: 28, bg: 'rgba(20,80,40,0.9)' }); enl.position.set(wh.entrance.x, 16, wh.entrance.z); group.add(enl);
+    }
     this.parkGroup.add(group);
   }
 
