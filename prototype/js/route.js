@@ -1,13 +1,13 @@
 /**
- * 提货路线规划：基于厂区道路图（ROADS）构建路网，
+ * 提货路线规划：基于厂区道路图构建路网，
  * 用最近邻 + Dijkstra 求"大门 → 各提货库房 → 出门"的有序路线与几何。
  */
-import { PARK, ROADS } from './mockErp.js';
+import { getPark, getRoads } from './warehouseConfig.js';
 
 const key = (x, z) => `${Math.round(x)},${Math.round(z)}`;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
-function buildGraph() {
+function buildGraph(PARK, ROADS) {
   const nodes = new Map(); // key -> {x,z}
   const adj = new Map();   // key -> [{to,w}]
   const ensure = (x, z) => {
@@ -22,7 +22,6 @@ function buildGraph() {
     adj.get(k2).push({ to: k1, w });
   };
 
-  // 横向道路上需要打点的 x 坐标：纵向道路 x + 库房入口 x + 大门/出门 x
   const colXs = new Set();
   ROADS.verticals.forEach((v) => colXs.add(v.x));
   PARK.warehouses.forEach((w) => colXs.add(w.entrance.x));
@@ -40,7 +39,6 @@ function buildGraph() {
     zs.forEach((z) => { const k = ensure(v.x, z); if (prev) link(prev, k); prev = k; });
   });
 
-  // 把任意外部点接入最近的路网节点（直线连接，作为出入库/出入门支路）
   const connect = (x, z) => {
     const k = ensure(x, z);
     let best = null, bestD = Infinity;
@@ -82,11 +80,12 @@ function dijkstra(adj, nodes, startK, endK) {
  * @returns {{ order: Array, legs: Array, totalDistance: number }}
  */
 export function planRoute(orders) {
-  const g = buildGraph();
+  const PARK = getPark();
+  const ROADS = getRoads();
+  const g = buildGraph(PARK, ROADS);
   const gateK = g.connect(PARK.gate.x, PARK.gate.z);
   const exitK = g.connect(PARK.exit.x, PARK.exit.z);
 
-  // 去重得到要途经的库房（含其入口节点）
   const seen = new Set();
   const stops = [];
   orders.forEach((o) => {
@@ -97,7 +96,6 @@ export function planRoute(orders) {
     stops.push({ warehouseId: wh.id, warehouseName: wh.name, entrance: wh.entrance, nodeK: g.connect(wh.entrance.x, wh.entrance.z) });
   });
 
-  // 最近邻排序（按路网距离），起点为大门
   const ordered = [];
   let curK = gateK;
   const remaining = [...stops];
@@ -112,7 +110,6 @@ export function planRoute(orders) {
     ordered.push(next);
     curK = next.nodeK;
   }
-  // 回到出门口
   const back = dijkstra(g.adj, g.nodes, curK, exitK);
 
   const legs = [];

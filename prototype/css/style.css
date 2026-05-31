@@ -19,6 +19,7 @@ body {
   color: var(--text);
 }
 button { font-family: inherit; }
+a { color: inherit; }
 
 /* ===== 登录页 ===== */
 .login-bg {
@@ -73,12 +74,16 @@ button { font-family: inherit; }
 .sum-item { text-align: center; }
 .sum-item b { font-size: 20px; color: #fff; display: block; }
 .sum-item span { font-size: 12px; color: var(--muted); }
-.topbar-right { display: flex; gap: 8px; }
+.topbar-right { display: flex; gap: 8px; align-items: center; }
 .ghost-btn {
   padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line);
   background: var(--panel-2); color: var(--text); cursor: pointer; font-size: 13px;
+  display: inline-flex; align-items: center; gap: 4px; text-decoration: none; white-space: nowrap;
 }
 .ghost-btn:hover { border-color: var(--accent); }
+.ghost-btn.save { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.ghost-btn.ok { background: var(--accent-2); border-color: var(--accent-2); }
+.file-label { position: relative; }
 
 /* ===== 布局 ===== */
 .layout { display: grid; grid-template-columns: 320px 1fr 300px; height: calc(100vh - 56px); }
@@ -86,7 +91,7 @@ button { font-family: inherit; }
 .orders-panel { border-right: 1px solid var(--line); }
 .detail-panel { border-left: 1px solid var(--line); }
 .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 14px 8px; }
-.panel-head h2 { font-size: 15px; margin: 0; color: #fff; }
+.panel-head h2, .panel-head h3 { font-size: 15px; margin: 0; color: #fff; }
 .link-btn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 13px; }
 
 /* ===== 提单列表 ===== */
@@ -115,11 +120,13 @@ button { font-family: inherit; }
 .st-frozen { background: rgba(255,59,48,.2); color: #ff7a72; }
 
 /* ===== 3D 舞台 ===== */
-.stage { position: relative; background: var(--bg); }
+.stage { position: relative; background: var(--bg); min-height: 320px; }
 .viewport { position: absolute; inset: 0; }
-.stage-tools { position: absolute; top: 12px; left: 12px; display: flex; gap: 8px; z-index: 5; }
+.stage-tools { position: absolute; top: 12px; left: 12px; display: flex; gap: 8px; z-index: 5; align-items: center; flex-wrap: wrap; }
 .tool-btn { padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: rgba(21,33,47,.85); color: var(--text); cursor: pointer; font-size: 12px; }
 .tool-btn:hover { border-color: var(--accent); }
+.tool-btn.back { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.view-badge { font-size: 12px; color: var(--text); background: rgba(21,33,47,.85); border: 1px solid var(--line); padding: 6px 10px; border-radius: 8px; }
 .loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); padding: 32px; text-align: center; line-height: 1.7; z-index: 4; }
 .loading .sub { display: block; font-size: 12px; color: var(--muted); margin-top: 10px; max-width: 460px; }
 .loading code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 4px; font-family: monospace; }
@@ -140,6 +147,7 @@ button { font-family: inherit; }
 .step-no { width: 22px; height: 22px; border-radius: 50%; background: var(--danger); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
 .step-ico { font-size: 16px; }
 .detail-box { padding: 12px 14px; color: var(--muted); font-size: 13px; }
+.detail-box strong { color: var(--text); }
 .d-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dashed var(--line); }
 .d-row span { color: var(--muted); }
 .d-row b { color: var(--text); }
@@ -148,7 +156,26 @@ button { font-family: inherit; }
 .d-tip { margin-top: 12px; padding: 10px; background: rgba(255,59,48,.12); border-radius: 8px; font-size: 12px; color: #ff9a93; }
 .d-tip b { color: #fff; }
 
+/* ===== 仓库配置编辑器 ===== */
+.config-layout { display: grid; grid-template-columns: 420px 1fr; height: calc(100vh - 56px); }
+.config-form { padding: 8px 14px 24px; border-right: 1px solid var(--line); }
+.cfg-section { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.cfg-section h3 { font-size: 14px; margin: 6px 0 12px; color: #fff; }
+.cfg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cfg-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.cfg-field input, .cfg-field select {
+  background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+  border-radius: 8px; padding: 8px; font-size: 13px;
+}
+.cfg-field input[type="color"] { padding: 2px; height: 34px; }
+.cfg-field input:focus, .cfg-field select:focus { outline: none; border-color: var(--accent); }
+.wh-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+.wh-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.wh-card-head b { color: #fff; }
+.cfg-tip { font-size: 12px; color: var(--muted); line-height: 1.7; margin-top: 14px; }
+
 @media (max-width: 1000px) {
   .layout { grid-template-columns: 1fr; grid-template-rows: auto 60vh auto; height: auto; }
+  .config-layout { grid-template-columns: 1fr; grid-template-rows: auto 60vh; height: auto; }
   .summary { gap: 12px; }
 }

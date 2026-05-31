@@ -15,13 +15,13 @@
     </div>
     <div class="summary" id="summary"></div>
     <div class="topbar-right">
+      <a class="ghost-btn" href="./config.html">⚙ 仓库配置</a>
       <button id="printAllBtn" class="ghost-btn">🖨 打印全部</button>
       <button id="logoutBtn" class="ghost-btn">退出</button>
     </div>
   </header>
 
   <main class="layout">
-    <!-- 左侧：提单列表 -->
     <aside class="panel orders-panel">
       <div class="panel-head">
         <h2>我的提单</h2>
@@ -30,12 +30,13 @@
       <div id="orderList" class="order-list"></div>
     </aside>
 
-    <!-- 中部：3D 导航 -->
     <section class="stage">
       <div id="viewport" class="viewport"></div>
       <div class="stage-tools">
+        <button id="backBtn" class="tool-btn back" style="display:none">← 返回厂区总览</button>
+        <span id="viewBadge" class="view-badge">厂区总览</span>
         <button data-view="reset" class="tool-btn">重置视角</button>
-        <button data-view="top" class="tool-btn">俯视全景</button>
+        <button data-view="top" class="tool-btn">俯视</button>
       </div>
       <div id="loading" class="loading">正在加载厂区 3D…</div>
       <div class="legend">
@@ -45,17 +46,15 @@
       </div>
     </section>
 
-    <!-- 右侧：提货顺序 + 详情 -->
     <aside class="panel detail-panel">
       <div class="panel-head"><h2>推荐提货顺序</h2></div>
       <div id="routeInfo" class="route-info"></div>
       <ol id="routeSteps" class="route-steps"></ol>
       <div class="panel-head"><h2>选中提单</h2></div>
-      <div id="detail" class="detail-box">点击左侧某张提单查看详情，并在 3D 图上以红色高亮其库位。</div>
+      <div id="detail" class="detail-box">点击左侧某张提单，将<strong>进入该仓库的库内 3D 图</strong>并以红色高亮其库位；点击右侧路线步骤则在厂区总览中定位。</div>
     </aside>
   </main>
 
-  <!-- 启动诊断：任何脚本/模块加载或运行错误都会在此提示，避免一直停留在“正在加载” -->
   <script>
     (function () {
       var booted = false;
@@ -66,24 +65,18 @@
         el.style.display = 'flex';
         el.innerHTML = '页面加载出错：' + (msg || '未知错误') +
           '<br/><span class="sub">请确认<strong>通过 HTTP 访问</strong>（不要用 file:// 直接打开本地文件）。' +
-          '在 prototype 目录运行：<code>python3 -m http.server 8123</code>，再打开 http://localhost:8123/ 。' +
+          '在 prototype 目录运行：<code>node serve.js</code> 或 <code>python -m http.server 8123</code>，再打开 http://localhost:8123/ 。' +
           '同时建议使用较新的 Chrome / Edge / Firefox / Safari。</span>';
       }
       window.addEventListener('error', function (e) {
         var t = e.target;
-        if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) {
-          showErr('资源加载失败：' + (t.src || t.href || ''));
-        } else if (e.message) {
-          showErr(e.message);
-        }
+        if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) showErr('资源加载失败：' + (t.src || t.href || ''));
+        else if (e.message) showErr(e.message);
       }, true);
-      window.addEventListener('unhandledrejection', function (e) {
-        showErr((e.reason && e.reason.message) || String(e.reason));
-      });
+      window.addEventListener('unhandledrejection', function (e) { showErr((e.reason && e.reason.message) || String(e.reason)); });
       setTimeout(function () {
         if (booted) return;
-        var hasCanvas = document.querySelector('#viewport canvas');
-        if (hasCanvas) return;
+        if (document.querySelector('#viewport canvas')) return;
         showErr('脚本未能正常启动（可能是浏览器不支持 ES 模块，或未通过 HTTP 访问）。');
       }, 6000);
     })();

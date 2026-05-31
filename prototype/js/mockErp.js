@@ -1,40 +1,12 @@
 /**
  * 模拟 ERP 接口层。
  * 真实联调时，将以下函数体替换为对 ERP 的 fetch 调用即可（接口契约见 docs/API.md）。
- * 坐标系：x 向右、z 向后，单位米。俯视图中 z 越大越靠近大门（屏幕下方）。
+ * 厂区/库房配置已抽到 warehouseConfig.js（可在「仓库配置」页面定制）。
  */
+import { getPark } from './warehouseConfig.js';
 
-// ===== 厂区 / 库房基础信息（对应 GET /api/warehouses）=====
-export const PARK = {
-  parkSize: { width: 340, depth: 280 },
-  gate: { id: 'GATE_IN', name: '大门 · 磅房', x: -140, z: 120 },
-  exit: { id: 'GATE_OUT', name: '出门口', x: -100, z: 120 },
-  warehouses: [
-    // 前排（靠大门），入口朝前（z 更大）
-    { id: 'WH01', name: '1号库', x: -90, z: 40, width: 64, depth: 36, color: 0x8aa0b8, entrance: { x: -90, z: 58 } },
-    { id: 'WH02', name: '2号库', x: 0,   z: 40, width: 64, depth: 36, color: 0x8aa0b8, entrance: { x: 0,   z: 58 } },
-    { id: 'WH03', name: '3号库', x: 90,  z: 40, width: 64, depth: 36, color: 0x8aa0b8, entrance: { x: 90,  z: 58 } },
-    // 后排，入口朝前（朝中间道路）
-    { id: 'WH04', name: '4号库', x: -90, z: -60, width: 64, depth: 36, color: 0x8aa0b8, entrance: { x: -90, z: -42 } },
-    { id: 'WH05', name: '5号库', x: 0,   z: -60, width: 64, depth: 36, color: 0x8aa0b8, entrance: { x: 0,   z: -42 } },
-    { id: 'WH06', name: '6号库', x: 90,  z: -60, width: 64, depth: 36, color: 0x8aa0b8, entrance: { x: 90,  z: -42 } }
-  ],
-  // 库内库位网格规格（区 / 每区排数 / 每排位数）
-  grid: { zones: ['A', 'B', 'C'], rowsPerZone: 6, colsPerRow: 8 }
-};
-
-// 道路网络（用于在 3D 中渲染与路线规划）。横向道路按 z、纵向道路按 x。
-export const ROADS = {
-  horizontals: [
-    { z: 80, x0: -150, x1: 150 },   // 前排前道路（连大门）
-    { z: -20, x0: -150, x1: 150 },  // 中间道路（后排入口）
-    { z: -100, x0: -150, x1: 150 }  // 后道路
-  ],
-  verticals: [
-    { x: -140, z0: -100, z1: 130 }, // 左环路（连大门/出门）
-    { x: 140, z0: -100, z1: 80 }    // 右环路
-  ]
-};
+// 兼容旧引用：从配置模块取当前生效配置
+export { getPark, getRoads } from './warehouseConfig.js';
 
 // ===== 提单数据（对应 GET /api/pickup/orders?phone=）=====
 // 演示账号：以下任一手机号均可登录查看不同场景。
@@ -58,7 +30,7 @@ const ORDER_DB = {
 };
 
 function mk(billNo, customer, goodsName, spec, weight, pieces, pieceUnit, warehouseId, locationCode, status, pickupCode, frozenReason = null) {
-  const wh = PARK.warehouses.find((w) => w.id === warehouseId);
+  const wh = getPark().warehouses.find((w) => w.id === warehouseId);
   const [zone, row, col] = locationCode.split('-');
   return {
     billNo, customer, goodsName, spec,
@@ -70,7 +42,6 @@ function mk(billNo, customer, goodsName, spec, weight, pieces, pieceUnit, wareho
   };
 }
 
-// 模拟网络延迟
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** 按手机号查询待提提单 */

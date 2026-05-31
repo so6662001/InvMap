@@ -23,13 +23,8 @@ init();
 
 async function init() {
   let res;
-  try {
-    res = await fetchOrders(phone);
-  } catch (e) {
-    console.error(e);
-    showLoadingMsg('获取提单数据失败，请检查网络后刷新。');
-    return;
-  }
+  try { res = await fetchOrders(phone); }
+  catch (e) { console.error(e); showLoadingMsg('获取提单数据失败，请检查网络后刷新。'); return; }
   if (!res || res.code !== 0) { location.href = './index.html'; return; }
   const { data } = res;
   state.orders = data.orders;
@@ -39,17 +34,15 @@ async function init() {
   renderSummary(data.summary);
   renderList();
 
-  // 路线规划（与 3D 无关，始终可用）
   try { state.plan = planRoute(state.pickable); renderRoute(state.plan); }
   catch (e) { console.error('路线规划失败', e); }
 
-  // 3D 场景
   if (!isWebGLAvailable()) {
     showLoadingMsg('当前浏览器/设备不支持 WebGL，已自动降级为 2D 信息模式。<br/>'
       + '<span class="sub">提单列表与提货路线照常使用；如需 3D 请更换支持 WebGL 的浏览器。</span>');
   } else {
     try {
-      state.view3d = new Warehouse3D(document.getElementById('viewport'));
+      state.view3d = new Warehouse3D(document.getElementById('viewport'), { onModeChange });
       state.view3d.setOrders(state.pickable);
       if (state.plan) state.view3d.setRoute(state.plan);
       hideLoading();
@@ -61,6 +54,13 @@ async function init() {
   }
 
   bindEvents();
+}
+
+function onModeChange(mode, wh) {
+  const back = document.getElementById('backBtn');
+  if (back) back.style.display = mode === 'interior' ? 'inline-flex' : 'none';
+  const badge = document.getElementById('viewBadge');
+  if (badge) badge.textContent = mode === 'interior' && wh ? `库内视图 · ${wh.name}` : '厂区总览';
 }
 
 function renderSummary(s) {
@@ -93,23 +93,35 @@ function renderList() {
       </div>`;
     if (!frozen) div.addEventListener('click', (e) => {
       if (e.target.closest('.mini-print')) return;
-      selectOrder(o.billNo);
+      selectOrder(o.billNo, true);
     });
     el.appendChild(div);
   });
 }
 
-function selectOrder(billNo) {
+/**
+ * @param {boolean} interior true=进入库内视图（点击提单）；false=厂区高亮（点击路线步骤）
+ */
+function selectOrder(billNo, interior = true) {
   state.selected = billNo;
   document.querySelectorAll('.order-card').forEach((c) =>
     c.classList.toggle('active', c.dataset.bill === billNo));
-  if (state.view3d) state.view3d.highlight(billNo);
-  renderDetail(state.orders.find((o) => o.billNo === billNo));
+  const o = state.orders.find((x) => x.billNo === billNo);
+  renderDetail(o, interior);
+  if (!state.view3d || !o) return;
+  if (interior) {
+    state.view3d.enterInterior(o.warehouseId, o.locationCode, o);
+  } else {
+    if (state.view3d.isInterior()) state.view3d.exitInterior(true);
+    state.view3d.highlight(billNo);
+    onModeChange('park', null);
+  }
 }
 
-function renderDetail(o) {
+function renderDetail(o, interior) {
   if (!o) return;
   const seq = state.plan ? state.plan.order.findIndex((x) => x.warehouseId === o.warehouseId) + 1 : 0;
+  const inside = interior && state.view3d;
   document.getElementById('detail').innerHTML = `
     <div class="d-row"><span>提单号</span><b>${o.billNo}</b></div>
     <div class="d-row"><span>货物</span><b>${o.goodsName} ${o.spec}</b></div>
@@ -117,7 +129,7 @@ function renderDetail(o) {
     <div class="d-row hl"><span>仓库</span><b>${o.warehouseName}</b></div>
     <div class="d-row hl"><span>库位</span><b>${o.locationText}（${o.locationCode}）</b></div>
     <div class="d-row"><span>提货码</span><b class="code">${o.pickupCode}</b></div>
-    ${seq > 0 ? `<div class="d-tip">该库位为推荐路线第 <b>${seq}</b> 站${state.view3d ? '，已在 3D 图上以红色高亮' : ''}。</div>` : ''}
+    ${seq > 0 ? `<div class="d-tip">该库位为推荐路线第 <b>${seq}</b> 站${inside ? '，已进入 <b>' + o.warehouseName + '</b> 库内，目标库位以红色高亮' : '，已在厂区图上高亮'}。</div>` : ''}
     <button class="primary-btn small" id="detailPrint">🖨 打印此提单</button>`;
   document.getElementById('detailPrint').addEventListener('click', () => printOrders([o], phone));
 }
@@ -137,7 +149,7 @@ function renderRoute(plan) {
     li.innerHTML = `<span class="step-no">${i + 1}</span> 前往 <b>${o.warehouseName}</b> 提货`;
     li.addEventListener('click', () => {
       const first = state.pickable.find((x) => x.warehouseId === o.warehouseId);
-      if (first) selectOrder(first.billNo);
+      if (first) selectOrder(first.billNo, false);
     });
     ol.appendChild(li);
   });
@@ -153,11 +165,16 @@ function bindEvents() {
     state.selected = null;
     document.querySelectorAll('.order-card').forEach((c) => c.classList.remove('active'));
     if (state.view3d) state.view3d.showAll();
+    onModeChange('park', null);
     document.getElementById('detail').textContent =
-      '已显示全部提单库位（不同颜色对应不同提单，序号为推荐提货顺序）。';
+      '已显示全部提单库位（不同颜色对应不同提单，序号为推荐提货顺序）。点击某张提单可进入对应仓库的库内视图。';
   });
-  document.getElementById('printAllBtn').addEventListener('click', () =>
-    printOrders(state.pickable, phone));
+  const back = document.getElementById('backBtn');
+  if (back) back.addEventListener('click', () => {
+    if (state.view3d) state.view3d.exitInterior();
+    onModeChange('park', null);
+  });
+  document.getElementById('printAllBtn').addEventListener('click', () => printOrders(state.pickable, phone));
   document.getElementById('logoutBtn').addEventListener('click', () => {
     sessionStorage.removeItem('invmap_phone'); location.href = './index.html';
   });
