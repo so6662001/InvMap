@@ -2,6 +2,7 @@ package com.invmap.erp;
 
 import com.invmap.config.ConfigService;
 import com.invmap.pickup.*;
+import com.invmap.settlement.SettlementData;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
@@ -102,6 +103,40 @@ public class MockErpService implements ErpService {
         double w = 0;
         for (PickupItem it : pickable) { whs.add(it.warehouseId()); w += it.weight(); }
         return new PickupOrder(billNo, customer, pickupCode, status, items, items.size(), whs.size(), round1(w));
+    }
+
+    @Override
+    public SettlementData getSettlement(String code) {
+        if (code == null || code.isBlank()) return null;
+        String c = code.trim();
+        for (String phone : new String[]{"13800000000", "13900000000", "13700000000"}) {
+            for (PickupOrder o : ordersOf(phone)) {
+                if (c.equalsIgnoreCase(o.billNo()) || c.equals(o.pickupCode())) return buildSettlement(o);
+            }
+        }
+        return null;
+    }
+
+    private SettlementData buildSettlement(PickupOrder o) {
+        List<SettlementData.Item> items = new ArrayList<>();
+        double tw = 0;
+        for (PickupItem it : o.items()) {
+            if ("FROZEN".equals(it.status())) continue;
+            items.add(new SettlementData.Item(it.goodsName(), it.spec(), it.weight(), it.weightUnit(),
+                    it.pieces(), it.pieceUnit(), it.warehouseName(), it.locationCode()));
+            tw += it.weight();
+        }
+        tw = round1(tw);
+        double storage = round1(tw * 25), handling = round1(tw * 18), weighing = 30;
+        List<SettlementData.Fee> fees = List.of(
+                new SettlementData.Fee("仓储费", storage),
+                new SettlementData.Fee("装卸费", handling),
+                new SettlementData.Fee("过磅费", weighing));
+        double total = round1(storage + handling + weighing);
+        String settleNo = "JS" + o.billNo().replace("TD", "");
+        String time = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+        return new SettlementData(settleNo, o.billNo(), o.customer(), o.pickupCode(), time, "系统",
+                items, tw, fees, total, "金额按合同结算，以财务为准。");
     }
 
     private static double round1(double v) { return Math.round(v * 10.0) / 10.0; }

@@ -22,6 +22,7 @@ invmap:
     mode: ${INVMAP_ERP_MODE:mock}
     base-url: ${INVMAP_ERP_BASEURL:http://erp.example.com}
     orders-path: ${INVMAP_ERP_ORDERS_PATH:/open/pickup/orders}
+    settlement-path: ${INVMAP_ERP_SETTLEMENT_PATH:/open/settlement}
     # 认证头（如 Authorization: Bearer xxx 或 X-Api-Key: xxx）
     auth-header: ${INVMAP_ERP_AUTH_HEADER:Authorization}
     auth-token: ${INVMAP_ERP_AUTH_TOKEN:}

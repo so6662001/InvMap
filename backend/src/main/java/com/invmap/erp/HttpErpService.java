@@ -3,6 +3,7 @@ package com.invmap.erp;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.invmap.config.ConfigService;
 import com.invmap.pickup.*;
+import com.invmap.settlement.SettlementData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -54,6 +55,39 @@ public class HttpErpService implements ErpService {
         } catch (Exception e) {
             log.warn("调用 ERP 失败 phone={}, err={}", phone, e.toString());
             return null; // 可在此改为读取本地缓存兜底
+        }
+    }
+
+    @Override
+    public SettlementData getSettlement(String code) {
+        try {
+            JsonNode root = client.get()
+                    .uri(b -> b.path(props.getSettlementPath()).queryParam("code", code).build())
+                    .headers(h -> { if (props.getAuthToken() != null && !props.getAuthToken().isBlank()) h.add(props.getAuthHeader(), props.getAuthToken()); })
+                    .retrieve().body(JsonNode.class);
+            if (root == null) return null;
+            JsonNode d = root.has("data") ? root.get("data") : root;
+            List<SettlementData.Item> items = new ArrayList<>();
+            JsonNode itemsNode = firstNode(d, "items", "details", "lines");
+            double tw = 0;
+            if (itemsNode != null && itemsNode.isArray()) for (JsonNode it : itemsNode) {
+                double w = firstNum(it, 0, "weight", "qtyWeight");
+                tw += w;
+                items.add(new SettlementData.Item(firstText(it, "", "goodsName", "materialName"), firstText(it, "", "spec"),
+                        w, "吨", (int) firstNum(it, 0, "pieces", "qty"), firstText(it, "件", "pieceUnit", "unit"),
+                        firstText(it, "", "warehouseName", "whName"), firstText(it, "", "locationCode", "binCode")));
+            }
+            List<SettlementData.Fee> fees = new ArrayList<>();
+            JsonNode feesNode = firstNode(d, "fees", "charges");
+            if (feesNode != null && feesNode.isArray()) for (JsonNode f : feesNode)
+                fees.add(new SettlementData.Fee(firstText(f, "费用", "name", "feeName"), firstNum(f, 0, "amount", "money")));
+            return new SettlementData(firstText(d, "", "settleNo", "settlementNo"), firstText(d, "", "billNo", "orderNo"),
+                    firstText(d, "", "customer", "customerName"), firstText(d, "", "pickupCode", "code"),
+                    firstText(d, "", "time", "settleTime"), firstText(d, "", "operator"),
+                    items, round1(tw), fees, firstNum(d, 0, "totalAmount", "amount"), firstText(d, "", "remark"));
+        } catch (Exception e) {
+            log.warn("调用 ERP 结算失败 code={}, err={}", code, e.toString());
+            return null;
         }
     }
 

@@ -11,6 +11,7 @@ public class ErpProperties {
     private String mode = "mock";
     private String baseUrl = "http://erp.example.com";
     private String ordersPath = "/open/pickup/orders";
+    private String settlementPath = "/open/settlement";
     /** 认证头名（如 Authorization 或 X-Api-Key），为空则不加认证头 */
     private String authHeader = "Authorization";
     /** 认证头值（如 Bearer xxx）；为空表示不鉴权 */
@@ -24,6 +25,8 @@ public class ErpProperties {
     public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
     public String getOrdersPath() { return ordersPath; }
     public void setOrdersPath(String ordersPath) { this.ordersPath = ordersPath; }
+    public String getSettlementPath() { return settlementPath; }
+    public void setSettlementPath(String settlementPath) { this.settlementPath = settlementPath; }
     public String getAuthHeader() { return authHeader; }
     public void setAuthHeader(String authHeader) { this.authHeader = authHeader; }
     public String getAuthToken() { return authToken; }
