@@ -270,3 +270,13 @@ a { color: inherit; }
 .settle-card .d-row .code { font-family: monospace; letter-spacing: 2px; }
 .settle-actions { display: grid; gap: 10px; }
 .ghost-btn.wide { width: 100%; justify-content: center; padding: 12px; }
+
+/* ===== 结算单：分段切换 / 打印选项 / 提示 ===== */
+.seg { display: flex; gap: 0; margin: 6px 0 12px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { flex: 1; padding: 8px; background: var(--panel-2); color: var(--muted); border: none; cursor: pointer; font-size: 13px; }
+.seg button.active { background: var(--accent); color: #fff; font-weight: 600; }
+.print-opts { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin: 6px 0 14px; font-size: 13px; color: var(--muted); }
+.print-opts select, .print-opts input[type="number"] { background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 6px 8px; font-size: 13px; }
+.print-opts input[type="number"] { width: 64px; }
+.print-opts .chk { display: flex; align-items: center; gap: 6px; color: var(--text); }
+.toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); background: rgba(39,174,96,.95); color: #fff; padding: 12px 22px; border-radius: 10px; font-size: 15px; z-index: 60; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
