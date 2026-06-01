@@ -203,3 +203,15 @@ GET /api/settlement?code={提货码或提货单号}
 状态码：`0` 成功；`1003` 未查询到该码/单号。http 模式映射见 `HttpErpService#getSettlement`，路径由 `invmap.erp.settlement-path` 配置。
 
 > 打印支持 **A4 一式两份**：同一页上下各半张打印两联（第一联客户存执 / 第二联仓库存根），中间虚线可裁切。
+
+
+## 车次合并结算 + 打印核销
+
+```
+GET  /api/settlement/trip?code={车次号}     # 合并该车次多张提单为一张结算单（data.bills 为提单号列表）
+POST /api/print-log                          # 打印后回写 ERP 核销
+     body: { type:"SETTLEMENT|PICKUP", code, billNo, copies, paper, operator, at }
+```
+http 模式路径：`invmap.erp.trip-path`、`invmap.erp.writeoff-path`，映射见 `HttpErpService`。
+
+打印份数与纸张：前端可选 **份数(自定义N)** 与 **纸张**——`a4`（一页上下各半张两联，N 份按每页 2 联自动分页）或 `receipt80`（80mm 小票，每份一段）；默认一式两份可在打印面板切换并记忆（localStorage）。
