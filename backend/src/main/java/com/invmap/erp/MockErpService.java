@@ -3,6 +3,9 @@ package com.invmap.erp;
 import com.invmap.config.ConfigService;
 import com.invmap.pickup.*;
 import com.invmap.settlement.SettlementData;
+import com.invmap.web.PrintLog;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +29,13 @@ public class MockErpService implements ErpService {
             "13800000000", ConfigService.VEHICLE_PRESETS.get(0), // 平板车
             "13900000000", ConfigService.VEHICLE_PRESETS.get(2), // 小货车
             "13700000000", ConfigService.VEHICLE_PRESETS.get(1)  // 半挂车
+    );
+
+    private static final Logger log = LoggerFactory.getLogger(MockErpService.class);
+    private static final String[] PHONES = {"13800000000", "13900000000", "13700000000"};
+    // 车次 → 提单号列表（演示：一车两单）
+    private static final Map<String, String[]> TRIPS = Map.of(
+            "C20260531A", new String[]{"TD20260531001", "TD20260531002"}
     );
 
     @Override
@@ -136,7 +146,57 @@ public class MockErpService implements ErpService {
         String settleNo = "JS" + o.billNo().replace("TD", "");
         String time = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
         return new SettlementData(settleNo, o.billNo(), o.customer(), o.pickupCode(), time, "系统",
-                items, tw, fees, total, "金额按合同结算，以财务为准。");
+                items, tw, fees, total, "金额按合同结算，以财务为准。", List.of(o.billNo()));
+    }
+
+    @Override
+    public SettlementData getTripSettlement(String tripCode) {
+        if (tripCode == null || tripCode.isBlank()) return null;
+        String[] billNos = TRIPS.get(tripCode.trim().toUpperCase());
+        if (billNos == null) return null;
+        List<PickupOrder> os = new ArrayList<>();
+        for (String bn : billNos) { PickupOrder o = findBill(bn); if (o != null) os.add(o); }
+        if (os.isEmpty()) return null;
+        return mergeSettlement(tripCode.trim().toUpperCase(), os);
+    }
+
+    @Override
+    public boolean writeOff(PrintLog l) {
+        // 真实环境改为调用 ERP 核销接口；此处记录日志
+        log.info("打印核销回写: type={}, code={}, billNo={}, copies={}, paper={}, at={}",
+                l.type(), l.code(), l.billNo(), l.copies(), l.paper(), l.at());
+        return true;
+    }
+
+    private PickupOrder findBill(String billNo) {
+        for (String phone : PHONES) for (PickupOrder o : ordersOf(phone)) if (o.billNo().equals(billNo)) return o;
+        return null;
+    }
+
+    private SettlementData mergeSettlement(String tripCode, List<PickupOrder> os) {
+        List<SettlementData.Item> items = new ArrayList<>();
+        List<String> bills = new ArrayList<>();
+        java.util.LinkedHashSet<String> custs = new java.util.LinkedHashSet<>();
+        double tw = 0;
+        for (PickupOrder o : os) {
+            bills.add(o.billNo()); custs.add(o.customer());
+            for (PickupItem it : o.items()) {
+                if ("FROZEN".equals(it.status())) continue;
+                items.add(new SettlementData.Item(it.goodsName(), it.spec(), it.weight(), it.weightUnit(),
+                        it.pieces(), it.pieceUnit(), it.warehouseName(), it.locationCode()));
+                tw += it.weight();
+            }
+        }
+        tw = round1(tw);
+        double storage = round1(tw * 25), handling = round1(tw * 18), weighing = 30.0 * os.size();
+        List<SettlementData.Fee> fees = List.of(
+                new SettlementData.Fee("仓储费", storage),
+                new SettlementData.Fee("装卸费", handling),
+                new SettlementData.Fee("过磅费", weighing));
+        double total = round1(storage + handling + weighing);
+        String time = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+        return new SettlementData("JS-" + tripCode, tripCode, String.join("/", custs), "", time, "系统",
+                items, tw, fees, total, "按车次合并结算，含 " + bills.size() + " 张提单。", bills);
     }
 
     private static double round1(double v) { return Math.round(v * 10.0) / 10.0; }

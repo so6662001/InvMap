@@ -12,6 +12,8 @@ public class ErpProperties {
     private String baseUrl = "http://erp.example.com";
     private String ordersPath = "/open/pickup/orders";
     private String settlementPath = "/open/settlement";
+    private String tripPath = "/open/settlement/trip";
+    private String writeoffPath = "/open/print-log";
     /** 认证头名（如 Authorization 或 X-Api-Key），为空则不加认证头 */
     private String authHeader = "Authorization";
     /** 认证头值（如 Bearer xxx）；为空表示不鉴权 */
@@ -27,6 +29,10 @@ public class ErpProperties {
     public void setOrdersPath(String ordersPath) { this.ordersPath = ordersPath; }
     public String getSettlementPath() { return settlementPath; }
     public void setSettlementPath(String settlementPath) { this.settlementPath = settlementPath; }
+    public String getTripPath() { return tripPath; }
+    public void setTripPath(String tripPath) { this.tripPath = tripPath; }
+    public String getWriteoffPath() { return writeoffPath; }
+    public void setWriteoffPath(String writeoffPath) { this.writeoffPath = writeoffPath; }
     public String getAuthHeader() { return authHeader; }
     public void setAuthHeader(String authHeader) { this.authHeader = authHeader; }
     public String getAuthToken() { return authToken; }

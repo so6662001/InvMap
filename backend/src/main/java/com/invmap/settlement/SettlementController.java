@@ -29,4 +29,12 @@ public class SettlementController {
         }
         return ApiResponse.ok(data);
     }
+
+    @GetMapping("/settlement/trip")
+    public ApiResponse<SettlementData> trip(@RequestParam String code) {
+        if (code == null || code.trim().isEmpty()) return ApiResponse.error(1002, "请输入车次号");
+        SettlementData data = erpService.getTripSettlement(code.trim());
+        if (data == null) return ApiResponse.error(1003, "未查询到该车次的结算单");
+        return ApiResponse.ok(data);
+    }
 }
