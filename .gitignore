@@ -1,0 +1,23 @@
+# 临时与本地产物
+.tmp_*
+*.log
+.DS_Store
+
+# Node / 前端
+node_modules/
+frontend/dist/
+frontend/.env
+frontend/android/
+frontend/ios/
+
+# Java / 后端
+backend/target/
+# 前端构建产物在打包时拷入；不纳入版本库
+backend/src/main/resources/static/
+# 配置持久化（运行时生成）
+**/data/park-config.json
+
+# IDE
+.idea/
+.vscode/
+*.iml

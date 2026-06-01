@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.3.5</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>com.invmap</groupId>
+  <artifactId>invmap-backend</artifactId>
+  <version>1.0.0</version>
+  <name>invmap-backend</name>
+  <description>钢铁现货仓库 · 驾驶员提货导航 后端服务</description>
+
+  <properties>
+    <java.version>21</java.version>
+    <frontend.dir>${project.basedir}/../frontend</frontend.dir>
+    <node.version>v20.18.0</node.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>invmap-backend</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <!--
+      一键构建：mvn -Pfrontend package
+      自动安装 node、构建 Vue 前端，并把 dist 拷入后端静态目录，产出可独立运行的单 jar。
+      未启用该 profile 时，默认仅构建后端（适合前后端分开部署/CI）。
+    -->
+    <profile>
+      <id>frontend</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.github.eirslett</groupId>
+            <artifactId>frontend-maven-plugin</artifactId>
+            <version>1.15.1</version>
+            <configuration>
+              <workingDirectory>${frontend.dir}</workingDirectory>
+              <installDirectory>${project.build.directory}</installDirectory>
+            </configuration>
+            <executions>
+              <execution>
+                <id>install-node-and-npm</id>
+                <goals><goal>install-node-and-npm</goal></goals>
+                <configuration><nodeVersion>${node.version}</nodeVersion></configuration>
+              </execution>
+              <execution>
+                <id>npm-install</id>
+                <goals><goal>npm</goal></goals>
+                <configuration><arguments>install</arguments></configuration>
+              </execution>
+              <execution>
+                <id>npm-build</id>
+                <goals><goal>npm</goal></goals>
+                <configuration><arguments>run build</arguments></configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-resources-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>copy-frontend-dist</id>
+                <phase>prepare-package</phase>
+                <goals><goal>copy-resources</goal></goals>
+                <configuration>
+                  <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+                  <resources>
+                    <resource>
+                      <directory>${frontend.dir}/dist</directory>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>

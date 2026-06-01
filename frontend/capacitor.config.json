@@ -1,0 +1,12 @@
+{
+  "appId": "com.invmap.terminal",
+  "appName": "InvMap提货导航",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

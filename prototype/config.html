@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>仓库配置 · InvMap</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="logo-dot"></span>
+      <strong>InvMap · 仓库配置</strong>
+      <span class="driver">定制你的厂区与库房</span>
+    </div>
+    <div class="topbar-right">
+      <button id="addBtn" class="ghost-btn">＋ 添加库房</button>
+      <button id="resetBtn" class="ghost-btn">恢复默认</button>
+      <button id="exportBtn" class="ghost-btn">导出 JSON</button>
+      <label class="ghost-btn file-label">导入 JSON<input id="importFile" type="file" accept="application/json" hidden /></label>
+      <button id="saveBtn" class="ghost-btn save">保存并应用</button>
+      <a class="ghost-btn" href="./app.html">← 返回提货页</a>
+    </div>
+  </header>
+
+  <main class="config-layout">
+    <aside class="panel config-form" id="form">
+      <div class="cfg-section">
+        <h3>厂区 / 大门</h3>
+        <div class="cfg-grid" id="parkFields"></div>
+      </div>
+      <div class="cfg-section">
+        <h3>默认库内网格（库房可单独覆盖）</h3>
+        <div class="cfg-grid" id="gridFields"></div>
+      </div>
+      <div class="cfg-section">
+        <div class="panel-head"><h3>园区道路</h3></div>
+        <p class="layout-tip">道路是<b>行车路线规划的基础</b>：路线沿道路自动计算。横向道路沿 X 方向（位于某个 Z），纵向道路沿 Z 方向（位于某个 X），交叉处自动连通；各库入口会就近接入最近的道路。</p>
+        <div id="roadsFields"></div>
+      </div>
+      <div class="cfg-section">
+        <div class="panel-head"><h3>库房列表</h3></div>
+        <div id="whList"></div>
+      </div>
+      <p class="cfg-tip">提示：修改后点「保存并应用」，返回提货页即可看到效果。演示提单绑定的库房编号为 WH01～WH06，若删除/改名会导致对应提单无法在 3D 中定位（仍可在列表查看）。</p>
+    </aside>
+
+    <section class="stage">
+      <div id="viewport" class="viewport"></div>
+      <div class="stage-tools">
+        <button id="previewBtn" class="tool-btn">应用预览</button>
+        <button data-view="reset" class="tool-btn">重置视角</button>
+        <button data-view="top" class="tool-btn">俯视</button>
+      </div>
+      <div id="loading" class="loading">正在加载 3D 预览…</div>
+      <div class="legend"><span>实时预览：修改字段后点「应用预览」刷新</span></div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      window.addEventListener('error', function (e) {
+        var t = e.target, el = document.getElementById('loading');
+        if (el && t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) {
+          el.style.display = 'flex';
+          el.innerHTML = '资源加载失败，请通过 HTTP 访问（node serve.js 或 python -m http.server）。';
+        }
+      }, true);
+    })();
+  </script>
+  <script type="module" src="./js/config.js"></script>
+</body>
+</html>

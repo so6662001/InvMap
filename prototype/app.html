@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>我的提货 · 厂区导航</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="logo-dot"></span>
+      <strong>InvMap 提货导航</strong>
+      <span id="driver" class="driver"></span>
+    </div>
+    <div class="summary" id="summary"></div>
+    <div class="topbar-right">
+      <a class="ghost-btn" href="./config.html">⚙ 仓库配置</a>
+      <button id="printAllBtn" class="ghost-btn">🖨 打印全部</button>
+      <button id="logoutBtn" class="ghost-btn">退出</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel orders-panel">
+      <div class="panel-head">
+        <h2>我的提单</h2>
+        <button id="showAllBtn" class="link-btn">全部展示</button>
+      </div>
+      <div id="orderList" class="order-list"></div>
+    </aside>
+
+    <section class="stage">
+      <div id="viewport" class="viewport"></div>
+      <div class="stage-tools">
+        <button id="backBtn" class="tool-btn back" style="display:none">← 返回厂区总览</button>
+        <span id="viewBadge" class="view-badge">厂区总览</span>
+        <button data-view="reset" class="tool-btn">重置视角</button>
+        <button data-view="top" class="tool-btn">俯视</button>
+      </div>
+      <div id="loading" class="loading">正在加载厂区 3D…</div>
+      <div class="legend">
+        <span><i style="background:#27ae60"></i>大门/入口</span>
+        <span><i style="background:#ffd166"></i>提货路线</span>
+        <span><i style="background:#ff3b30"></i>选中库位</span>
+      </div>
+    </section>
+
+    <aside class="panel detail-panel">
+      <div class="panel-head"><h2>通行条件</h2></div>
+      <div id="condBar" class="cond-bar"></div>
+      <div class="panel-head"><h2>推荐提货顺序</h2></div>
+      <div id="routeInfo" class="route-info"></div>
+      <ol id="routeSteps" class="route-steps"></ol>
+      <div class="route-help">路线如何来的：从<strong>大门</strong>出发，按厂区道路就近依次经过你所有商品涉及的仓库，最后到<strong>出门口</strong>。道路网络与各库入口可在「⚙ 仓库配置」中调整。</div>
+      <div class="panel-head"><h2>选中提单 / 商品</h2></div>
+      <div id="detail" class="detail-box">一张提单可能含<strong>多个商品、分布在不同仓库</strong>。点击提单查看其全部商品库位（单仓库直接进库内，多仓库在总览高亮并按路线提货）；点击某条商品进入对应仓库的<strong>库内 3D 图</strong>精确定位。</div>
+    </aside>
+  </main>
+
+  <script>
+    (function () {
+      var booted = false;
+      window.__invmapBooted = function () { booted = true; };
+      function showErr(msg) {
+        var el = document.getElementById('loading');
+        if (!el) return;
+        el.style.display = 'flex';
+        el.innerHTML = '页面加载出错：' + (msg || '未知错误') +
+          '<br/><span class="sub">请确认<strong>通过 HTTP 访问</strong>（不要用 file:// 直接打开本地文件）。' +
+          '在 prototype 目录运行：<code>node serve.js</code> 或 <code>python -m http.server 8123</code>，再打开 http://localhost:8123/ 。' +
+          '同时建议使用较新的 Chrome / Edge / Firefox / Safari。</span>';
+      }
+      window.addEventListener('error', function (e) {
+        var t = e.target;
+        if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) showErr('资源加载失败：' + (t.src || t.href || ''));
+        else if (e.message) showErr(e.message);
+      }, true);
+      window.addEventListener('unhandledrejection', function (e) { showErr((e.reason && e.reason.message) || String(e.reason)); });
+      setTimeout(function () {
+        if (booted) return;
+        if (document.querySelector('#viewport canvas')) return;
+        showErr('脚本未能正常启动（可能是浏览器不支持 ES 模块，或未通过 HTTP 访问）。');
+      }, 6000);
+    })();
+  </script>
+  <script type="module">
+    import './js/app.js';
+    window.__invmapBooted && window.__invmapBooted();
+  </script>
+</body>
+</html>
